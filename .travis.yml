@@ -1,0 +1,18 @@
+language: go
+
+go:
+  - 1.5
+  - 1.6
+  - tip
+
+addons:
+  postgresql: "9.4"
+
+before_script:
+  - psql -c 'create database qgtest;' -U postgres
+  - cat schema.sql | psql -U postgres -d qgtest
+
+script:
+  - go get -u github.com/mattn/gom 
+  - gom install
+  - go test -v

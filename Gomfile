@@ -1,0 +1,1 @@
+gom 'github.com/jackc/pgx', :commit => '11e1f70c3229081c7b433ad211753f0546b23ab4'
