@@ -8,7 +8,18 @@ Ruby [Que](https://github.com/chanks/que) implementation in Go. This library is 
 
 ## Why created
 
-- I wanted `database/sql` aware version of `que-go` so that our original app can cooperate well with it.
-- I wanted transaction that can be injected to a Job since it make WorkFunc tests much easier.
-- I wanted to customize `Job.Delete()` func to move worked job record to different history table.
-- I wanted better logging functionality
+First of all, [Que](https://github.com/chanks/que), and it's Go port [que-go](https://github.com/bgentry/que-go) are really great libraries, which can simplify small to mid scale application with some sort of asynchronous tasks/jobs by avoiding to add another moving part if you are using PostgreSQL for main RDBMS. However, as I use `que-go` to develop my application written in Go, there are some functionalities that `que-go` doesn't provide. The following is an list of functionalities I'm going to add to `qg`.
+
+- `database/sql` compatible version of enqueue functions so that many other database libraries can work with it.
+- Transaction can be injected to a `Job` to make `WorkFunc` tests much easier.
+- Customizable `Job.Delete()`, `Job.Error()` to give more flexibility.
+- Synchronous execution option in `Client.Enqueue` and `Client.EnqueueInTx` for easy development.
+- Better logger interface to be able to switch whatever loggers developers want. 
+
+This library is still under heavy development, and might significantly change APIs.
+
+
+## Great Resources
+
+- https://github.com/chanks/que/tree/master/docs
+- https://brandur.org/postgres-queues
