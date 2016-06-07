@@ -1,7 +1,9 @@
 package qg
 
 import (
+	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx"
 )
@@ -9,33 +11,37 @@ import (
 var testConnConfig = pgx.ConnConfig{
 	Host:     "localhost",
 	Database: "qgtest",
+	// LogLevel: pgx.LogLevelDebug,
+	// Logger:   log15.New("testlogger", "test/qg"),
 }
 
-func openTestClientMaxConns(t testing.TB, maxConnections int) *Client {
+func openTestClientMaxConns(t testing.TB, maxConnections int) (*Client, func()) {
 	connPoolConfig := pgx.ConnPoolConfig{
 		ConnConfig:     testConnConfig,
 		MaxConnections: maxConnections,
+		AcquireTimeout: time.Duration(10 * time.Millisecond),
 		AfterConnect:   PrepareStatements,
 	}
 	pool, err := pgx.NewConnPool(connPoolConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewClient(pool)
+	c := NewClient(pool)
+	fn := func() {
+		if _, err := c.pool.Exec("TRUNCATE TABLE que_jobs"); err != nil {
+			panic(err)
+		}
+		c.stdConn.Close()
+		c.pool.Close()
+	}
+	return c, fn
 }
 
-func openTestClient(t testing.TB) *Client {
+func openTestClient(t testing.TB) (*Client, func()) {
 	return openTestClientMaxConns(t, 5)
 }
 
-func truncateAndClose(pool *pgx.ConnPool) {
-	if _, err := pool.Exec("TRUNCATE TABLE que_jobs"); err != nil {
-		panic(err)
-	}
-	pool.Close()
-}
-
-func findOneJob(q queryable) (*Job, error) {
+func findOneJob(q stdQueryable) (*Job, error) {
 	findSQL := `
 	SELECT priority, run_at, job_id, job_class, args, error_count, last_error, queue
 	FROM que_jobs LIMIT 1`
@@ -51,7 +57,7 @@ func findOneJob(q queryable) (*Job, error) {
 		&j.LastError,
 		&j.Queue,
 	)
-	if err == pgx.ErrNoRows {
+	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {

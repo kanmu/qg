@@ -1,11 +1,15 @@
 package qg
 
 import (
+	"database/sql"
+	"database/sql/driver"
 	"errors"
+	"log"
 	"sync"
 	"time"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/stdlib"
 )
 
 // Job is a single unit of work for Que to perform.
@@ -39,7 +43,7 @@ type Job struct {
 
 	// LastError is the error message or stack trace from the last time the job
 	// failed. It is ignored on job creation.
-	LastError pgx.NullString
+	LastError sql.NullString
 
 	mu      sync.Mutex
 	deleted bool
@@ -121,14 +125,20 @@ func (j *Job) Error(msg string) error {
 // Client is a Que client that can add jobs to the queue and remove jobs from
 // the queue.
 type Client struct {
-	pool *pgx.ConnPool
+	pool    *pgx.ConnPool
+	stdConn *sql.DB
 
 	// TODO: add a way to specify default queueing options
 }
 
 // NewClient creates a new Client that uses the pgx pool.
 func NewClient(pool *pgx.ConnPool) *Client {
-	return &Client{pool: pool}
+	conn, err := stdlib.OpenFromConnPool(pool)
+	if err != nil {
+		log.Printf("failed to create new client: %s", err)
+		return nil
+	}
+	return &Client{pool: pool, stdConn: conn}
 }
 
 // ErrMissingType is returned when you attempt to enqueue a job with no Type
@@ -137,7 +147,7 @@ var ErrMissingType = errors.New("job type must be specified")
 
 // Enqueue adds a job to the queue.
 func (c *Client) Enqueue(j *Job) error {
-	return execEnqueue(j, c.pool)
+	return execEnqueue(j, c.stdConn)
 }
 
 // EnqueueInTx adds a job to the queue within the scope of the transaction tx.
@@ -146,60 +156,64 @@ func (c *Client) Enqueue(j *Job) error {
 //
 // It is the caller's responsibility to Commit or Rollback the transaction after
 // this function is called.
-func (c *Client) EnqueueInTx(j *Job, tx *pgx.Tx) error {
+func (c *Client) EnqueueInTx(j *Job, tx stdQueryable) error {
 	return execEnqueue(j, tx)
 }
 
-func execEnqueue(j *Job, q queryable) error {
+func execEnqueue(j *Job, q stdQueryable) error {
 	if j.Type == "" {
 		return ErrMissingType
 	}
 
-	queue := pgx.NullString{
+	queue := sql.NullString{
 		String: j.Queue,
 		Valid:  j.Queue != "",
 	}
-	priority := pgx.NullInt16{
-		Int16: int16(j.Priority),
+	priority := sql.NullInt64{
+		Int64: int64(j.Priority),
 		Valid: j.Priority != 0,
 	}
-	runAt := pgx.NullTime{
+	runAt := nullTime{
 		Time:  j.RunAt,
 		Valid: !j.RunAt.IsZero(),
 	}
-	args := bytea(j.Args)
+	args := string(j.Args)
+	if args == "" {
+		args = "[]"
+	}
 
 	_, err := q.Exec("que_insert_job", queue, priority, runAt, j.Type, args)
 	return err
 }
 
-type bytea []byte
+type nullTime struct {
+	Time  time.Time
+	Valid bool
+}
 
-func (b bytea) Encode(w *pgx.WriteBuf, oid pgx.Oid) error {
-	if len(b) == 0 {
-		w.WriteInt32(-1)
-		return nil
-	}
-	w.WriteInt32(int32(len(b)))
-	w.WriteBytes(b)
+func (nt *nullTime) Scan(value interface{}) error {
+	nt.Time, nt.Valid = value.(time.Time)
 	return nil
 }
 
-func (b bytea) FormatCode() int16 {
-	return pgx.TextFormatCode
+func (nt nullTime) Value() (driver.Value, error) {
+	if !nt.Valid {
+		return nil, nil
+	}
+	return nt.Time, nil
 }
 
-type queryable interface {
-	Exec(sql string, arguments ...interface{}) (commandTag pgx.CommandTag, err error)
-	Query(sql string, args ...interface{}) (*pgx.Rows, error)
-	QueryRow(sql string, args ...interface{}) *pgx.Row
+type stdQueryable interface {
+	Exec(sql string, arguments ...interface{}) (sql.Result, error)
+	Query(sql string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(sql string, args ...interface{}) *sql.Row
 }
 
 // Maximum number of loop iterations in LockJob before giving up.  This is to
 // avoid looping forever in case something is wrong.
 const maxLockJobAttempts = 10
 
-// Returned by LockJob if a job could not be retrieved from the queue after
+// ErrAgain returned by LockJob if a job could not be retrieved from the queue after
 // several attempts because of concurrently running transactions.  This error
 // should not be returned unless the queue is under extremely heavy
 // concurrency.
@@ -287,6 +301,7 @@ var preparedStatements = map[string]string{
 	"que_unlock_job":  sqlUnlockJob,
 }
 
+// PrepareStatements prepare sqls
 func PrepareStatements(conn *pgx.Conn) error {
 	for name, sql := range preparedStatements {
 		if _, err := conn.Prepare(name, sql); err != nil {
