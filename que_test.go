@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	// "github.com/inconshreveable/log15"
 	"github.com/jackc/pgx"
 )
 
@@ -19,8 +20,7 @@ func openTestClientMaxConns(t testing.TB, maxConnections int) (*Client, func()) 
 	connPoolConfig := pgx.ConnPoolConfig{
 		ConnConfig:     testConnConfig,
 		MaxConnections: maxConnections,
-		AcquireTimeout: time.Duration(10 * time.Millisecond),
-		AfterConnect:   PrepareStatements,
+		AcquireTimeout: time.Duration(50 * time.Millisecond),
 	}
 	pool, err := pgx.NewConnPool(connPoolConfig)
 	if err != nil {
@@ -29,7 +29,7 @@ func openTestClientMaxConns(t testing.TB, maxConnections int) (*Client, func()) 
 	c := NewClient(pool)
 	fn := func() {
 		if _, err := c.pool.Exec("TRUNCATE TABLE que_jobs"); err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
 		c.stdConn.Close()
 		c.pool.Close()

@@ -49,6 +49,7 @@ type Job struct {
 	deleted bool
 	pool    *pgx.ConnPool
 	conn    *pgx.Conn
+	stdConn *sql.DB
 }
 
 // Conn returns the pgx connection that this job is locked to. You may initiate
@@ -56,11 +57,11 @@ type Job struct {
 // Done(). At that point, this conn will be returned to the pool and it is
 // unsafe to keep using it. This function will return nil if the Job's
 // connection has already been released with Done().
-func (j *Job) Conn() *pgx.Conn {
+func (j *Job) Conn() *sql.DB {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	return j.conn
+	return j.stdConn
 }
 
 // Delete marks this job as complete by deleting it form the database.
@@ -75,7 +76,7 @@ func (j *Job) Delete() error {
 		return nil
 	}
 
-	_, err := j.conn.Exec("que_destroy_job", j.Queue, j.Priority, j.RunAt, j.ID)
+	_, err := j.stdConn.Exec(sqlDeleteJob, j.Queue, j.Priority, j.RunAt, j.ID)
 	if err != nil {
 		return err
 	}
@@ -90,7 +91,7 @@ func (j *Job) Done() {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	if j.conn == nil || j.pool == nil {
+	if j.stdConn == nil || j.pool == nil {
 		// already marked as done
 		return
 	}
@@ -98,11 +99,12 @@ func (j *Job) Done() {
 	var ok bool
 	// Swallow this error because we don't want an unlock failure to cause work to
 	// stop.
-	_ = j.conn.QueryRow("que_unlock_job", j.ID).Scan(&ok)
+	_ = j.stdConn.QueryRow(sqlUnlockJob, j.ID).Scan(&ok)
 
-	j.pool.Release(j.conn)
+	// j.pool.Release(j.conn)
+	j.stdConn.Close()
 	j.pool = nil
-	j.conn = nil
+	j.stdConn = nil
 }
 
 // Error marks the job as failed and schedules it to be reworked. An error
@@ -115,7 +117,7 @@ func (j *Job) Error(msg string) error {
 	errorCount := j.ErrorCount + 1
 	delay := intPow(int(errorCount), 4) + 3 // TODO: configurable delay
 
-	_, err := j.conn.Exec("que_set_error", errorCount, delay, msg, j.Queue, j.Priority, j.RunAt, j.ID)
+	_, err := j.stdConn.Exec(sqlSetError, errorCount, delay, msg, j.Queue, j.Priority, j.RunAt, j.ID)
 	if err != nil {
 		return err
 	}
@@ -182,7 +184,7 @@ func execEnqueue(j *Job, q stdQueryable) error {
 		args = "[]"
 	}
 
-	_, err := q.Exec("que_insert_job", queue, priority, runAt, j.Type, args)
+	_, err := q.Exec(sqlInsertJob, queue, priority, runAt, j.Type, args)
 	return err
 }
 
@@ -234,15 +236,15 @@ var ErrAgain = errors.New("maximum number of LockJob attempts reached")
 // After the Job has been worked, you must call either Done() or Error() on it
 // in order to return the database connection to the pool and remove the lock.
 func (c *Client) LockJob(queue string) (*Job, error) {
-	conn, err := c.pool.Acquire()
+	conn, err := stdlib.OpenFromConnPool(c.pool)
 	if err != nil {
 		return nil, err
 	}
 
-	j := Job{pool: c.pool, conn: conn}
+	j := Job{pool: c.pool, stdConn: conn}
 
 	for i := 0; i < maxLockJobAttempts; i++ {
-		err = conn.QueryRow("que_lock_job", queue).Scan(
+		err = conn.QueryRow(sqlLockJob, queue).Scan(
 			&j.Queue,
 			&j.Priority,
 			&j.RunAt,
@@ -252,8 +254,9 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 			&j.ErrorCount,
 		)
 		if err != nil {
-			c.pool.Release(conn)
-			if err == pgx.ErrNoRows {
+			// c.pool.Release(conn)
+			conn.Close()
+			if err == sql.ErrNoRows {
 				return nil, nil
 			}
 			return nil, err
@@ -272,7 +275,7 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 		// I'm not sure how to reliably commit a transaction that deletes
 		// the job in a separate thread between lock_job and check_job.
 		var ok bool
-		err = conn.QueryRow("que_check_job", j.Queue, j.Priority, j.RunAt, j.ID).Scan(&ok)
+		err = conn.QueryRow(sqlCheckJob, j.Queue, j.Priority, j.RunAt, j.ID).Scan(&ok)
 		if err == nil {
 			return &j, nil
 		} else if err == pgx.ErrNoRows {
@@ -282,10 +285,11 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 			// eventually causing the server to run out of locks.
 			//
 			// Also swallow the possible error, exactly like in Done.
-			_ = conn.QueryRow("que_unlock_job", j.ID).Scan(&ok)
+			_ = conn.QueryRow(sqlUnlockJob, j.ID).Scan(&ok)
 			continue
 		} else {
-			c.pool.Release(conn)
+			// c.pool.Release(conn)
+			conn.Close()
 			return nil, err
 		}
 	}
