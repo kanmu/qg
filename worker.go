@@ -85,6 +85,7 @@ func (w *Worker) Work() {
 	}
 }
 
+// WorkOne locks and executes job
 func (w *Worker) WorkOne() (didWork bool) {
 	j, err := w.c.LockJob(w.Queue)
 	if err != nil {
