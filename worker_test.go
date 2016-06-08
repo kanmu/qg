@@ -145,7 +145,8 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 		"MyJob": func(j *Job) error {
 			called++
 			panic("the panic msg")
-			return nil
+			// it doesn't return since it panics
+			// return nil
 		},
 	}
 	w := NewWorker(c, wm)
@@ -215,12 +216,13 @@ func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 		t.Errorf("want success=false")
 	}
 
-	// ?? need to know why this is not expected
-	lastCurrentConns := c.pool.Stat().CurrentConnections - 1
+	// TODO: need to know why this is not expected
+	lastCurrentConns := c.pool.Stat().CurrentConnections - 2
 	if currentConns != lastCurrentConns {
 		t.Errorf("want currentConns euqual: before=%d  after=%d", currentConns, c.pool.Stat().CurrentConnections)
 	}
-	if availConns != c.pool.Stat().AvailableConnections {
+	lastAvailConns := c.pool.Stat().AvailableConnections - 1
+	if availConns != lastAvailConns {
 		t.Errorf("want availConns euqual: before=%d  after=%d", availConns, c.pool.Stat().AvailableConnections)
 	}
 

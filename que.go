@@ -50,6 +50,7 @@ type Job struct {
 	pool    *pgx.ConnPool
 	conn    *pgx.Conn
 	stdConn *sql.DB
+	tx      *sql.Tx
 }
 
 // Conn returns the pgx connection that this job is locked to. You may initiate
