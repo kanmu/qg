@@ -48,8 +48,8 @@ type Job struct {
 	mu      sync.Mutex
 	deleted bool
 	pool    *pgx.ConnPool
-	stdConn *sql.DB
-	tx      txer
+	stdConn Conner
+	tx      Txer
 }
 
 // Conn returns the pgx connection that this job is locked to. You may initiate
@@ -57,11 +57,19 @@ type Job struct {
 // Done(). At that point, this conn will be returned to the pool and it is
 // unsafe to keep using it. This function will return nil if the Job's
 // connection has already been released with Done().
-func (j *Job) Conn() *sql.DB {
+func (j *Job) Conn() Conner {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
 	return j.stdConn
+}
+
+// Tx returns tx
+func (j *Job) Tx() Txer {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	return j.tx
 }
 
 // Delete marks this job as complete by deleting it form the database.
@@ -158,11 +166,11 @@ func (c *Client) Enqueue(j *Job) error {
 //
 // It is the caller's responsibility to Commit or Rollback the transaction after
 // this function is called.
-func (c *Client) EnqueueInTx(j *Job, tx queryer) error {
+func (c *Client) EnqueueInTx(j *Job, tx Queryer) error {
 	return execEnqueue(j, tx)
 }
 
-func execEnqueue(j *Job, q queryer) error {
+func execEnqueue(j *Job, q Queryer) error {
 	if j.Type == "" {
 		return ErrMissingType
 	}
@@ -205,18 +213,29 @@ func (nt nullTime) Value() (driver.Value, error) {
 	return nt.Time, nil
 }
 
-type queryer interface {
+// Queryer is interface for both conn and tx
+type Queryer interface {
 	Exec(sql string, arguments ...interface{}) (sql.Result, error)
 	Query(sql string, args ...interface{}) (*sql.Rows, error)
 	QueryRow(sql string, args ...interface{}) *sql.Row
 }
 
-type txer interface {
+// Txer is interface for tx
+type Txer interface {
 	Exec(sql string, arguments ...interface{}) (sql.Result, error)
 	Query(sql string, args ...interface{}) (*sql.Rows, error)
 	QueryRow(sql string, args ...interface{}) *sql.Row
 	Commit() error
 	Rollback() error
+}
+
+// Conner is interface for conn
+type Conner interface {
+	Exec(sql string, arguments ...interface{}) (sql.Result, error)
+	Query(sql string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(sql string, args ...interface{}) *sql.Row
+	Begin() (*sql.Tx, error)
+	Close() error
 }
 
 // Maximum number of loop iterations in LockJob before giving up.  This is to

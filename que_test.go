@@ -41,7 +41,7 @@ func openTestClient(t testing.TB) (*Client, func()) {
 	return openTestClientMaxConns(t, 5)
 }
 
-func findOneJob(q queryer) (*Job, error) {
+func findOneJob(q Queryer) (*Job, error) {
 	findSQL := `
 	SELECT priority, run_at, job_id, job_class, args, error_count, last_error, queue
 	FROM que_jobs LIMIT 1`
