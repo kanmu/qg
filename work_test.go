@@ -431,8 +431,8 @@ func TestJobDone(t *testing.T) {
 	j.Done()
 
 	// make sure conn and pool were cleared
-	if j.conn != nil {
-		t.Errorf("want nil conn, got %+v", j.conn)
+	if j.stdConn != nil {
+		t.Errorf("want nil conn, got %+v", j.stdConn)
 	}
 	if j.pool != nil {
 		t.Errorf("want nil pool, got %+v", j.pool)

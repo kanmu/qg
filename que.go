@@ -48,9 +48,8 @@ type Job struct {
 	mu      sync.Mutex
 	deleted bool
 	pool    *pgx.ConnPool
-	conn    *pgx.Conn
 	stdConn *sql.DB
-	tx      *sql.Tx
+	tx      txer
 }
 
 // Conn returns the pgx connection that this job is locked to. You may initiate
@@ -159,11 +158,11 @@ func (c *Client) Enqueue(j *Job) error {
 //
 // It is the caller's responsibility to Commit or Rollback the transaction after
 // this function is called.
-func (c *Client) EnqueueInTx(j *Job, tx stdQueryable) error {
+func (c *Client) EnqueueInTx(j *Job, tx queryer) error {
 	return execEnqueue(j, tx)
 }
 
-func execEnqueue(j *Job, q stdQueryable) error {
+func execEnqueue(j *Job, q queryer) error {
 	if j.Type == "" {
 		return ErrMissingType
 	}
@@ -206,10 +205,18 @@ func (nt nullTime) Value() (driver.Value, error) {
 	return nt.Time, nil
 }
 
-type stdQueryable interface {
+type queryer interface {
 	Exec(sql string, arguments ...interface{}) (sql.Result, error)
 	Query(sql string, args ...interface{}) (*sql.Rows, error)
 	QueryRow(sql string, args ...interface{}) *sql.Row
+}
+
+type txer interface {
+	Exec(sql string, arguments ...interface{}) (sql.Result, error)
+	Query(sql string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(sql string, args ...interface{}) *sql.Row
+	Commit() error
+	Rollback() error
 }
 
 // Maximum number of loop iterations in LockJob before giving up.  This is to
