@@ -151,6 +151,7 @@ func (w *Worker) Shutdown() {
 // recoverPanic tries to handle panics in job execution.
 // A stacktrace is stored into Job last_error.
 func recoverPanic(j *Job) {
+	j.Tx().Rollback()
 	if r := recover(); r != nil {
 		// record an error on the job with panic message and stacktrace
 		stackBuf := make([]byte, 1024)
