@@ -8,7 +8,9 @@ import (
 
 var testConnConfig = pgx.ConnConfig{
 	Host:     "localhost",
-	Database: "que-go-test",
+	Database: "qgtest",
+	// LogLevel: pgx.LogLevelDebug,
+	// Logger:   log15.New("testlogger", "test/qg"),
 }
 
 func openTestClientMaxConns(t testing.TB, maxConnections int) *Client {
