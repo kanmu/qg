@@ -9,9 +9,13 @@ import (
 	"testing"
 )
 
+func init() {
+	log.SetOutput(ioutil.Discard)
+}
+
 func TestWorkerWorkOne(t *testing.T) {
-	c, cleanup := openTestClient(t)
-	defer cleanup()
+	c := openTestClient(t)
+	defer truncateAndClose(c.pool)
 
 	success := false
 	wm := WorkMap{
@@ -41,8 +45,8 @@ func TestWorkerWorkOne(t *testing.T) {
 }
 
 func TestWorkerShutdown(t *testing.T) {
-	c, cleanup := openTestClient(t)
-	defer cleanup()
+	c := openTestClient(t)
+	defer truncateAndClose(c.pool)
 
 	w := NewWorker(c, WorkMap{})
 	finished := false
@@ -60,12 +64,12 @@ func TestWorkerShutdown(t *testing.T) {
 }
 
 func BenchmarkWorker(b *testing.B) {
-	c, cleanup := openTestClient(b)
+	c := openTestClient(b)
 	log.SetOutput(ioutil.Discard)
 	defer func() {
 		log.SetOutput(os.Stdout)
 	}()
-	defer cleanup()
+	defer truncateAndClose(c.pool)
 
 	w := NewWorker(c, WorkMap{"Nil": nilWorker})
 
@@ -86,8 +90,8 @@ func nilWorker(j *Job) error {
 }
 
 func TestWorkerWorkReturnsError(t *testing.T) {
-	c, cleanup := openTestClient(t)
-	defer cleanup()
+	c := openTestClient(t)
+	defer truncateAndClose(c.pool)
 
 	called := 0
 	wm := WorkMap{
@@ -115,7 +119,7 @@ func TestWorkerWorkReturnsError(t *testing.T) {
 		t.Errorf("want called=1 was: %d", called)
 	}
 
-	tx, err := c.stdConn.Begin()
+	tx, err := c.pool.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,16 +141,15 @@ func TestWorkerWorkReturnsError(t *testing.T) {
 }
 
 func TestWorkerWorkRescuesPanic(t *testing.T) {
-	c, cleanup := openTestClient(t)
-	defer cleanup()
+	c := openTestClient(t)
+	defer truncateAndClose(c.pool)
 
 	called := 0
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
 			called++
 			panic("the panic msg")
-			// it doesn't return since it panics
-			// return nil
+			return nil
 		},
 	}
 	w := NewWorker(c, wm)
@@ -160,7 +163,7 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 		t.Errorf("want called=1 was: %d", called)
 	}
 
-	tx, err := c.stdConn.Begin()
+	tx, err := c.pool.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,11 +192,11 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 }
 
 func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
-	c, cleanup := openTestClient(t)
-	defer cleanup()
+	c := openTestClient(t)
+	defer truncateAndClose(c.pool)
 
-	currentConns := c.pool.Stat().CurrentConnections
-	availConns := c.pool.Stat().AvailableConnections
+	currentConns := c.pool.Stat().CurrentConnections + 1
+	availConns := c.pool.Stat().AvailableConnections + 1
 
 	success := false
 	wm := WorkMap{}
@@ -216,17 +219,14 @@ func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 		t.Errorf("want success=false")
 	}
 
-	// TODO: need to know why this is not expected
-	lastCurrentConns := c.pool.Stat().CurrentConnections - 2
-	if currentConns != lastCurrentConns {
+	if currentConns != c.pool.Stat().CurrentConnections {
 		t.Errorf("want currentConns euqual: before=%d  after=%d", currentConns, c.pool.Stat().CurrentConnections)
 	}
-	lastAvailConns := c.pool.Stat().AvailableConnections - 1
-	if availConns != lastAvailConns {
+	if availConns != c.pool.Stat().AvailableConnections {
 		t.Errorf("want availConns euqual: before=%d  after=%d", availConns, c.pool.Stat().AvailableConnections)
 	}
 
-	tx, err := c.stdConn.Begin()
+	tx, err := c.pool.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
