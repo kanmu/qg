@@ -2,9 +2,7 @@ package qg
 
 import (
 	"database/sql"
-	"database/sql/driver"
 	"errors"
-	"log"
 	"sync"
 	"time"
 
@@ -43,181 +41,14 @@ type Job struct {
 
 	// LastError is the error message or stack trace from the last time the job
 	// failed. It is ignored on job creation.
-	LastError sql.NullString
+	LastError pgx.NullString
 
 	mu      sync.Mutex
 	deleted bool
 	pool    *pgx.ConnPool
+	conn    *pgx.Conn
 	stdConn Conner
 	tx      Txer
-}
-
-// Conn returns the pgx connection that this job is locked to. You may initiate
-// transactions on this connection or use it as you please until you call
-// Done(). At that point, this conn will be returned to the pool and it is
-// unsafe to keep using it. This function will return nil if the Job's
-// connection has already been released with Done().
-func (j *Job) Conn() Conner {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-
-	return j.stdConn
-}
-
-// Tx returns tx
-func (j *Job) Tx() Txer {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-
-	return j.tx
-}
-
-// Delete marks this job as complete by deleting it form the database.
-//
-// You must also later call Done() to return this job's database connection to
-// the pool.
-func (j *Job) Delete() error {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-
-	if j.deleted {
-		return nil
-	}
-
-	_, err := j.stdConn.Exec(sqlDeleteJob, j.Queue, j.Priority, j.RunAt, j.ID)
-	if err != nil {
-		return err
-	}
-
-	j.deleted = true
-	return nil
-}
-
-// Done releases the Postgres advisory lock on the job and returns the database
-// connection to the pool.
-func (j *Job) Done() {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-
-	if j.stdConn == nil || j.pool == nil {
-		// already marked as done
-		return
-	}
-
-	var ok bool
-	// Swallow this error because we don't want an unlock failure to cause work to
-	// stop.
-	_ = j.stdConn.QueryRow(sqlUnlockJob, j.ID).Scan(&ok)
-
-	// j.pool.Release(j.conn)
-	j.stdConn.Close()
-	j.pool = nil
-	j.stdConn = nil
-}
-
-// Error marks the job as failed and schedules it to be reworked. An error
-// message or backtrace can be provided as msg, which will be saved on the job.
-// It will also increase the error count.
-//
-// You must also later call Done() to return this job's database connection to
-// the pool.
-func (j *Job) Error(msg string) error {
-	errorCount := j.ErrorCount + 1
-	delay := intPow(int(errorCount), 4) + 3 // TODO: configurable delay
-
-	_, err := j.stdConn.Exec(sqlSetError, errorCount, delay, msg, j.Queue, j.Priority, j.RunAt, j.ID)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// Client is a Que client that can add jobs to the queue and remove jobs from
-// the queue.
-type Client struct {
-	pool    *pgx.ConnPool
-	stdConn *sql.DB
-
-	// TODO: add a way to specify default queueing options
-}
-
-// NewClient creates a new Client that uses the pgx pool.
-func NewClient(pool *pgx.ConnPool) *Client {
-	conn, err := stdlib.OpenFromConnPool(pool)
-	if err != nil {
-		log.Printf("failed to create new client: %s", err)
-		return nil
-	}
-	return &Client{pool: pool, stdConn: conn}
-}
-
-// ErrMissingType is returned when you attempt to enqueue a job with no Type
-// specified.
-var ErrMissingType = errors.New("job type must be specified")
-
-// Enqueue adds a job to the queue.
-func (c *Client) Enqueue(j *Job) error {
-	return execEnqueue(j, c.stdConn)
-}
-
-// EnqueueInTx adds a job to the queue within the scope of the transaction tx.
-// This allows you to guarantee that an enqueued job will either be committed or
-// rolled back atomically with other changes in the course of this transaction.
-//
-// It is the caller's responsibility to Commit or Rollback the transaction after
-// this function is called.
-func (c *Client) EnqueueInTx(j *Job, tx Queryer) error {
-	return execEnqueue(j, tx)
-}
-
-func execEnqueue(j *Job, q Queryer) error {
-	if j.Type == "" {
-		return ErrMissingType
-	}
-
-	queue := sql.NullString{
-		String: j.Queue,
-		Valid:  j.Queue != "",
-	}
-	priority := sql.NullInt64{
-		Int64: int64(j.Priority),
-		Valid: j.Priority != 0,
-	}
-	runAt := nullTime{
-		Time:  j.RunAt,
-		Valid: !j.RunAt.IsZero(),
-	}
-	args := string(j.Args)
-	if args == "" {
-		args = "[]"
-	}
-
-	_, err := q.Exec(sqlInsertJob, queue, priority, runAt, j.Type, args)
-	return err
-}
-
-type nullTime struct {
-	Time  time.Time
-	Valid bool
-}
-
-func (nt *nullTime) Scan(value interface{}) error {
-	nt.Time, nt.Valid = value.(time.Time)
-	return nil
-}
-
-func (nt nullTime) Value() (driver.Value, error) {
-	if !nt.Valid {
-		return nil, nil
-	}
-	return nt.Time, nil
-}
-
-// Queryer is interface for both conn and tx
-type Queryer interface {
-	Exec(sql string, arguments ...interface{}) (sql.Result, error)
-	Query(sql string, args ...interface{}) (*sql.Rows, error)
-	QueryRow(sql string, args ...interface{}) *sql.Row
 }
 
 // Txer is interface for tx
@@ -238,11 +69,169 @@ type Conner interface {
 	Close() error
 }
 
+// Conn returns the pgx connection that this job is locked to. You may initiate
+// transactions on this connection or use it as you please until you call
+// Done(). At that point, this conn will be returned to the pool and it is
+// unsafe to keep using it. This function will return nil if the Job's
+// connection has already been released with Done().
+func (j *Job) Conn() *pgx.Conn {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	return j.conn
+}
+
+// Tx returns transaction
+func (j *Job) Tx() Txer {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	return j.tx
+}
+
+// Delete marks this job as complete by deleting it form the database.
+//
+// You must also later call Done() to return this job's database connection to
+// the pool.
+func (j *Job) Delete() error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	if j.deleted {
+		return nil
+	}
+
+	_, err := j.conn.Exec("que_destroy_job", j.Queue, j.Priority, j.RunAt, j.ID)
+	if err != nil {
+		return err
+	}
+
+	j.deleted = true
+	return nil
+}
+
+// Done releases the Postgres advisory lock on the job and returns the database
+// connection to the pool.
+func (j *Job) Done() {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	if j.conn == nil || j.pool == nil {
+		// already marked as done
+		return
+	}
+
+	var ok bool
+	// Swallow this error because we don't want an unlock failure to cause work to
+	// stop.
+	_ = j.conn.QueryRow("que_unlock_job", j.ID).Scan(&ok)
+
+	j.stdConn.Close()
+	j.pool.Release(j.conn)
+	j.pool = nil
+	j.conn = nil
+	j.stdConn = nil
+}
+
+// Error marks the job as failed and schedules it to be reworked. An error
+// message or backtrace can be provided as msg, which will be saved on the job.
+// It will also increase the error count.
+//
+// You must also later call Done() to return this job's database connection to
+// the pool.
+func (j *Job) Error(msg string) error {
+	errorCount := j.ErrorCount + 1
+	delay := intPow(int(errorCount), 4) + 3 // TODO: configurable delay
+
+	_, err := j.conn.Exec("que_set_error", errorCount, delay, msg, j.Queue, j.Priority, j.RunAt, j.ID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Client is a Que client that can add jobs to the queue and remove jobs from
+// the queue.
+type Client struct {
+	pool *pgx.ConnPool
+
+	// TODO: add a way to specify default queueing options
+}
+
+// NewClient creates a new Client that uses the pgx pool.
+func NewClient(pool *pgx.ConnPool) *Client {
+	return &Client{pool: pool}
+}
+
+// ErrMissingType is returned when you attempt to enqueue a job with no Type
+// specified.
+var ErrMissingType = errors.New("job type must be specified")
+
+// Enqueue adds a job to the queue.
+func (c *Client) Enqueue(j *Job) error {
+	return execEnqueue(j, c.pool)
+}
+
+// EnqueueInTx adds a job to the queue within the scope of the transaction tx.
+// This allows you to guarantee that an enqueued job will either be committed or
+// rolled back atomically with other changes in the course of this transaction.
+//
+// It is the caller's responsibility to Commit or Rollback the transaction after
+// this function is called.
+func (c *Client) EnqueueInTx(j *Job, tx *pgx.Tx) error {
+	return execEnqueue(j, tx)
+}
+
+func execEnqueue(j *Job, q queryable) error {
+	if j.Type == "" {
+		return ErrMissingType
+	}
+
+	queue := pgx.NullString{
+		String: j.Queue,
+		Valid:  j.Queue != "",
+	}
+	priority := pgx.NullInt16{
+		Int16: int16(j.Priority),
+		Valid: j.Priority != 0,
+	}
+	runAt := pgx.NullTime{
+		Time:  j.RunAt,
+		Valid: !j.RunAt.IsZero(),
+	}
+	args := bytea(j.Args)
+
+	_, err := q.Exec("que_insert_job", queue, priority, runAt, j.Type, args)
+	return err
+}
+
+type bytea []byte
+
+func (b bytea) Encode(w *pgx.WriteBuf, oid pgx.Oid) error {
+	if len(b) == 0 {
+		w.WriteInt32(-1)
+		return nil
+	}
+	w.WriteInt32(int32(len(b)))
+	w.WriteBytes(b)
+	return nil
+}
+
+func (b bytea) FormatCode() int16 {
+	return pgx.TextFormatCode
+}
+
+type queryable interface {
+	Exec(sql string, arguments ...interface{}) (commandTag pgx.CommandTag, err error)
+	Query(sql string, args ...interface{}) (*pgx.Rows, error)
+	QueryRow(sql string, args ...interface{}) *pgx.Row
+}
+
 // Maximum number of loop iterations in LockJob before giving up.  This is to
 // avoid looping forever in case something is wrong.
 const maxLockJobAttempts = 10
 
-// ErrAgain returned by LockJob if a job could not be retrieved from the queue after
+// ErrAgain Returned by LockJob if a job could not be retrieved from the queue after
 // several attempts because of concurrently running transactions.  This error
 // should not be returned unless the queue is under extremely heavy
 // concurrency.
@@ -263,15 +252,19 @@ var ErrAgain = errors.New("maximum number of LockJob attempts reached")
 // After the Job has been worked, you must call either Done() or Error() on it
 // in order to return the database connection to the pool and remove the lock.
 func (c *Client) LockJob(queue string) (*Job, error) {
-	conn, err := stdlib.OpenFromConnPool(c.pool)
+	conn, err := c.pool.Acquire()
+	if err != nil {
+		return nil, err
+	}
+	stdConn, err := stdlib.OpenFromConnPool(c.pool)
 	if err != nil {
 		return nil, err
 	}
 
-	j := Job{pool: c.pool, stdConn: conn}
+	j := Job{pool: c.pool, conn: conn, stdConn: stdConn}
 
 	for i := 0; i < maxLockJobAttempts; i++ {
-		err = conn.QueryRow(sqlLockJob, queue).Scan(
+		err = conn.QueryRow("que_lock_job", queue).Scan(
 			&j.Queue,
 			&j.Priority,
 			&j.RunAt,
@@ -281,9 +274,9 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 			&j.ErrorCount,
 		)
 		if err != nil {
-			// c.pool.Release(conn)
-			conn.Close()
-			if err == sql.ErrNoRows {
+			stdConn.Close()
+			c.pool.Release(conn)
+			if err == pgx.ErrNoRows {
 				return nil, nil
 			}
 			return nil, err
@@ -302,7 +295,7 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 		// I'm not sure how to reliably commit a transaction that deletes
 		// the job in a separate thread between lock_job and check_job.
 		var ok bool
-		err = conn.QueryRow(sqlCheckJob, j.Queue, j.Priority, j.RunAt, j.ID).Scan(&ok)
+		err = conn.QueryRow("que_check_job", j.Queue, j.Priority, j.RunAt, j.ID).Scan(&ok)
 		if err == nil {
 			return &j, nil
 		} else if err == pgx.ErrNoRows {
@@ -312,11 +305,11 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 			// eventually causing the server to run out of locks.
 			//
 			// Also swallow the possible error, exactly like in Done.
-			_ = conn.QueryRow(sqlUnlockJob, j.ID).Scan(&ok)
+			_ = conn.QueryRow("que_unlock_job", j.ID).Scan(&ok)
 			continue
 		} else {
-			// c.pool.Release(conn)
-			conn.Close()
+			stdConn.Close()
+			c.pool.Release(conn)
 			return nil, err
 		}
 	}
@@ -332,7 +325,7 @@ var preparedStatements = map[string]string{
 	"que_unlock_job":  sqlUnlockJob,
 }
 
-// PrepareStatements prepare sqls
+// PrepareStatements prepar statements
 func PrepareStatements(conn *pgx.Conn) error {
 	for name, sql := range preparedStatements {
 		if _, err := conn.Prepare(name, sql); err != nil {

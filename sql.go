@@ -26,7 +26,7 @@ package qg
 // Thanks to RhodiumToad in #postgresql for help with the job lock CTE.
 const (
 	sqlLockJob = `
-WITH RECURSIVE jobs AS (
+WITH RECURSIVE job AS (
   SELECT (j).*, pg_try_advisory_lock((j).job_id) AS locked
   FROM (
     SELECT j
@@ -44,18 +44,18 @@ WITH RECURSIVE jobs AS (
         FROM que_jobs AS j
         WHERE queue = $1::text
         AND run_at <= now()
-        AND (priority, run_at, job_id) > (jobs.priority, jobs.run_at, jobs.job_id)
+        AND (priority, run_at, job_id) > (job.priority, job.run_at, job.job_id)
         ORDER BY priority, run_at, job_id
         LIMIT 1
       ) AS j
-      FROM jobs
-      WHERE jobs.job_id IS NOT NULL
+      FROM job
+      WHERE NOT job.locked
       LIMIT 1
     ) AS t1
   )
 )
 SELECT queue, priority, run_at, job_id, job_class, args, error_count
-FROM jobs
+FROM job
 WHERE locked
 LIMIT 1
 `
