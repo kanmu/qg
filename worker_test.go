@@ -195,8 +195,8 @@ func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 	c := openTestClient(t)
 	defer truncateAndClose(c.pool)
 
-	currentConns := c.pool.Stat().CurrentConnections + 1
-	availConns := c.pool.Stat().AvailableConnections + 1
+	currentConns := c.pool.Stat().CurrentConnections
+	availConns := c.pool.Stat().AvailableConnections
 
 	success := false
 	wm := WorkMap{}
