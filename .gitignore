@@ -24,3 +24,5 @@ _testmain.go
 *.prof
 
 vendor
+vendor_v1
+vendor_v2
