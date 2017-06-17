@@ -6,7 +6,7 @@ go:
   - tip
 
 addons:
-  postgresql: "9.5"
+  postgresql: "9.4"
 
 install:
   - go get -u github.com/golang/dep/cmd/dep
