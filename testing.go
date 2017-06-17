@@ -1,8 +1,10 @@
 package qg
 
+import "database/sql"
+
 // TestInjectJobConn injects *pgx.Conn to Job
-func TestInjectJobConn(j *Job, conn Conner) *Job {
-	j.stdConn = conn
+func TestInjectJobConn(j *Job, conn *sql.DB) *Job {
+	j.pool = conn
 	return j
 }
 

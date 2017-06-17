@@ -1,9 +1,12 @@
 package qg
 
 import (
+	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/stdlib"
 )
 
 var testConnConfig = pgx.ConnConfig{
@@ -13,31 +16,52 @@ var testConnConfig = pgx.ConnConfig{
 	// Logger:   log15.New("testlogger", "test/qg"),
 }
 
+const maxConn = 5
+
 func openTestClientMaxConns(t testing.TB, maxConnections int) *Client {
-	connPoolConfig := pgx.ConnPoolConfig{
-		ConnConfig:     testConnConfig,
-		MaxConnections: maxConnections,
-		AfterConnect:   PrepareStatements,
+	// connPoolConfig := pgx.ConnPoolConfig{
+	// 	ConnConfig:     testConnConfig,
+	// 	MaxConnections: maxConnections,
+	// 	AfterConnect:   PrepareStatements,
+	// }
+	// pool, err := pgx.NewConnPool(connPoolConfig)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	driverConfig := stdlib.DriverConfig{
+		ConnConfig: pgx.ConnConfig{
+			Host:     "localhost",
+			Database: "qgtest",
+		},
+		AfterConnect: PrepareStatements,
 	}
-	pool, err := pgx.NewConnPool(connPoolConfig)
+	stdlib.RegisterDriverConfig(&driverConfig)
+	db, err := sql.Open("pgx", driverConfig.ConnectionString(""))
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewClient(pool)
+	// using stdlib, it's difficult to open max conn from the begining
+	// if we want to open connections till its limit, need to use go routine to
+	// concurrently open connections
+	db.SetMaxOpenConns(maxConnections)
+	db.SetMaxIdleConns(maxConnections)
+	// make lifetime sufficiently long
+	db.SetConnMaxLifetime(time.Duration(5 * time.Minute))
+	return NewClient(db)
 }
 
 func openTestClient(t testing.TB) *Client {
-	return openTestClientMaxConns(t, 5)
+	return openTestClientMaxConns(t, maxConn)
 }
 
-func truncateAndClose(pool *pgx.ConnPool) {
+func truncateAndClose(pool *sql.DB) {
 	if _, err := pool.Exec("TRUNCATE TABLE que_jobs"); err != nil {
 		panic(err)
 	}
 	pool.Close()
 }
 
-func findOneJob(q queryable) (*Job, error) {
+func findOneJob(q Queryer) (*Job, error) {
 	findSQL := `
 	SELECT priority, run_at, job_id, job_class, args, error_count, last_error, queue
 	FROM que_jobs LIMIT 1`
@@ -53,7 +77,7 @@ func findOneJob(q queryable) (*Job, error) {
 		&j.LastError,
 		&j.Queue,
 	)
-	if err == pgx.ErrNoRows {
+	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {

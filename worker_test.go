@@ -195,8 +195,8 @@ func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 	c := openTestClient(t)
 	defer truncateAndClose(c.pool)
 
-	currentConns := c.pool.Stat().CurrentConnections
-	availConns := c.pool.Stat().AvailableConnections
+	currentConns := 2
+	availConns := 2
 
 	success := false
 	wm := WorkMap{}
@@ -219,11 +219,11 @@ func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 		t.Errorf("want success=false")
 	}
 
-	if currentConns != c.pool.Stat().CurrentConnections {
-		t.Errorf("want currentConns euqual: before=%d  after=%d", currentConns, c.pool.Stat().CurrentConnections)
+	if currentConns != c.pool.Stats().OpenConnections {
+		t.Errorf("want currentConns euqual: before=%d  after=%d", currentConns, c.pool.Stats().OpenConnections)
 	}
-	if availConns != c.pool.Stat().AvailableConnections {
-		t.Errorf("want availConns euqual: before=%d  after=%d", availConns, c.pool.Stat().AvailableConnections)
+	if availConns != c.pool.Stats().OpenConnections {
+		t.Errorf("want availConns euqual: before=%d  after=%d", availConns, c.pool.Stats().OpenConnections)
 	}
 
 	tx, err := c.pool.Begin()
