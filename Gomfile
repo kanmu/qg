@@ -1,2 +1,0 @@
-gom 'github.com/jackc/pgx'
-gom 'github.com/inconshreveable/log15'

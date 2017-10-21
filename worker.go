@@ -95,7 +95,7 @@ func (w *Worker) WorkOne() (didWork bool) {
 	if j == nil {
 		return // no job was available
 	}
-	j.tx, err = j.stdConn.Begin()
+	j.tx, err = j.pool.Begin()
 	if err != nil {
 		log.Printf("failed to create transaction: %v", err)
 		return

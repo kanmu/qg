@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/stdlib"
 )
 
 func TestLockJob(t *testing.T) {
@@ -67,9 +68,10 @@ func TestLockJob(t *testing.T) {
 	}
 
 	// make sure conn was checked out of pool
-	stat := c.pool.Stat()
-	total, available := stat.CurrentConnections, stat.AvailableConnections
-	if want := total - 1; available != want {
+	openedConn := 2 // one is for locking job, the other is for counting pg_locks
+	stat := c.pool.Stats()
+	available := stat.OpenConnections
+	if want := openedConn; available != want {
 		t.Errorf("want available=%d, got %d", want, available)
 	}
 
@@ -213,11 +215,11 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 	// *pgx.ConnPool doesn't support pools of only one connection.  Make sure
 	// the other one is busy so we know which backend will be used by LockJob
 	// below.
-	unusedConn, err := c.pool.Acquire()
+	unusedConn, err := stdlib.AcquireConn(c.pool)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.pool.Release(unusedConn)
+	defer stdlib.ReleaseConn(c.pool, unusedConn)
 
 	// We use two jobs: the first one is concurrently deleted, and the second
 	// one is returned by LockJob after recovering from the race condition.
@@ -351,12 +353,12 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 		}
 	}()
 
-	conn, err := c.pool.Acquire()
+	conn, err := stdlib.AcquireConn(c.pool)
 	if err != nil {
 		panic(err)
 	}
 	ourBackendID := getBackendID(conn)
-	c.pool.Release(conn)
+	stdlib.ReleaseConn(c.pool, conn)
 
 	// synchronization point
 	lockJobBackendIDChan <- ourBackendID
@@ -445,10 +447,11 @@ func TestJobDone(t *testing.T) {
 	}
 
 	// make sure conn was returned to pool
-	stat := c.pool.Stat()
-	total, available := stat.CurrentConnections, stat.AvailableConnections
-	if total != available {
-		t.Errorf("want available=total, got available=%d total=%d", available, total)
+	openedConn := 1
+	stat := c.pool.Stats()
+	available := stat.OpenConnections
+	if openedConn != available {
+		t.Errorf("want available=total, got available=%d total=%d", available, openedConn)
 	}
 }
 
@@ -569,6 +572,8 @@ func TestJobDeleteFromTxRollback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Logf("j1=%+v", j1)
+	t.Logf("j2=%+v", j2)
 
 	if j1.ID != j2.ID {
 		t.Errorf("want job %d, got %d", j1.ID, j2.ID)
@@ -626,9 +631,10 @@ func TestJobError(t *testing.T) {
 	}
 
 	// make sure conn was returned to pool
-	stat := c.pool.Stat()
-	total, available := stat.CurrentConnections, stat.AvailableConnections
-	if total != available {
-		t.Errorf("want available=total, got available=%d total=%d", available, total)
+	openedConn := 1
+	stat := c.pool.Stats()
+	available := stat.OpenConnections
+	if openedConn != available {
+		t.Errorf("want available=total, got available=%d total=%d", available, openedConn)
 	}
 }
