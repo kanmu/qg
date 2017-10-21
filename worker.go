@@ -13,7 +13,7 @@ import (
 
 // WorkFunc is a function that performs a Job. If an error is returned, the job
 // is reenqueued with exponential backoff.
-type WorkFunc func(j *Job) error
+type WorkFunc func(j Executable) error
 
 // WorkMap is a map of Job names to WorkFuncs that are used to perform Jobs of a
 // given type.
@@ -95,23 +95,23 @@ func (w *Worker) WorkOne() (didWork bool) {
 	if j == nil {
 		return // no job was available
 	}
-	j.tx, err = j.pool.Begin()
-	if err != nil {
+
+	if err := j.BeginTx(); err != nil {
 		log.Printf("failed to create transaction: %v", err)
 		return
 	}
-	defer j.tx.Rollback()
+	defer j.RollbackTx()
 	defer j.Done()
 	defer recoverPanic(j)
 
 	didWork = true
 
-	wf, ok := w.m[j.Type]
+	wf, ok := w.m[j.GetType()]
 	if !ok {
-		msg := fmt.Sprintf("unknown job type: %q", j.Type)
+		msg := fmt.Sprintf("unknown job type: %q", j.GetType())
 		log.Println(msg)
 		if err = j.Error(msg); err != nil {
-			log.Printf("attempting to save error on job %d: %v", j.ID, err)
+			log.Printf("attempting to save error on job %d: %v", j.GetID(), err)
 		}
 		return
 	}
@@ -122,10 +122,10 @@ func (w *Worker) WorkOne() (didWork bool) {
 	}
 
 	if err = j.Delete(); err != nil {
-		log.Printf("attempting to delete job %d: %v", j.ID, err)
+		log.Printf("attempting to delete job %d: %v", j.GetID(), err)
 	}
-	j.tx.Commit()
-	log.Printf("event=job_worked job_id=%d job_type=%s", j.ID, j.Type)
+	j.CommitTx()
+	log.Printf("event=job_worked job_id=%d job_type=%s", j.GetID(), j.GetType())
 	return
 }
 
@@ -149,8 +149,8 @@ func (w *Worker) Shutdown() {
 
 // recoverPanic tries to handle panics in job execution.
 // A stacktrace is stored into Job last_error.
-func recoverPanic(j *Job) {
-	j.tx.Rollback()
+func recoverPanic(j Executable) {
+	j.RollbackTx()
 	if r := recover(); r != nil {
 		// record an error on the job with panic message and stacktrace
 		stackBuf := make([]byte, 1024)
@@ -161,9 +161,9 @@ func recoverPanic(j *Job) {
 		fmt.Fprintln(buf, string(stackBuf[:n]))
 		fmt.Fprintln(buf, "[...]")
 		stacktrace := buf.String()
-		log.Printf("event=panic job_id=%d job_type=%s\n%s", j.ID, j.Type, stacktrace)
+		log.Printf("event=panic job_id=%d job_type=%s\n%s", j.GetID(), j.GetType(), stacktrace)
 		if err := j.Error(stacktrace); err != nil {
-			log.Printf("attempting to save error on job %d: %v", j.ID, err)
+			log.Printf("attempting to save error on job %d: %v", j.GetID(), err)
 		}
 	}
 }

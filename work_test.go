@@ -32,7 +32,7 @@ func TestLockJob(t *testing.T) {
 	defer j.Done()
 
 	// check values of returned Job
-	if j.ID == 0 {
+	if j.GetID() == 0 {
 		t.Errorf("want non-zero ID")
 	}
 	if want := ""; j.Queue != want {

@@ -13,6 +13,22 @@ import (
 	"github.com/jackc/pgx/stdlib"
 )
 
+// Executable job like interface
+type Executable interface {
+	Conn() *pgx.Conn
+	Tx() Txer
+	Delete() error
+	Done()
+	Error(string) error
+
+	GetID() int64
+	GetType() string
+
+	BeginTx() error
+	RollbackTx() error
+	CommitTx() error
+}
+
 // Job is a single unit of work for Que to perform.
 type Job struct {
 	// ID is the unique database ID of the Job. It is ignored on job creation.
@@ -156,6 +172,33 @@ func (j *Job) Error(msg string) error {
 	return nil
 }
 
+// BeginTx start tx
+func (j *Job) BeginTx() error {
+	var err error
+	j.tx, err = j.pool.Begin()
+	return err
+}
+
+// CommitTx commit tx
+func (j *Job) CommitTx() error {
+	return j.tx.Commit()
+}
+
+// RollbackTx rollback tx
+func (j *Job) RollbackTx() error {
+	return j.tx.Rollback()
+}
+
+// GetID get job id
+func (j *Job) GetID() int64 {
+	return j.ID
+}
+
+// GetType get job type
+func (j *Job) GetType() string {
+	return j.Type
+}
+
 // Client is a Que client that can add jobs to the queue and remove jobs from
 // the queue.
 type Client struct {
@@ -260,7 +303,7 @@ var ErrAgain = errors.New("maximum number of LockJob attempts reached")
 //
 // After the Job has been worked, you must call either Done() or Error() on it
 // in order to return the database connection to the pool and remove the lock.
-func (c *Client) LockJob(queue string) (*Job, error) {
+func (c *Client) LockJob(queue string) (Executable, error) {
 	conn, err := stdlib.AcquireConn(c.pool)
 	if err != nil {
 		return nil, err
