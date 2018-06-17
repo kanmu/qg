@@ -78,6 +78,17 @@ type Conner interface {
 	Close() error
 }
 
+// JobStats stores the statistics information for the queue and type
+type JobStats struct {
+	Queue             string
+	Type              string
+	Count             int
+	CountWorking      int
+	CountErrored      int
+	HighestErrorCount int
+	OldestRunAt       time.Time
+}
+
 // Conn returns transaction
 func (j *Job) Conn() *pgx.Conn {
 	j.mu.Lock()
@@ -161,12 +172,45 @@ func (j *Job) Error(msg string) error {
 type Client struct {
 	pool *sql.DB
 
+	stmtJobStats *sql.Stmt
+	jobsManaged  map[int64]*Job
 	// TODO: add a way to specify default queueing options
 }
 
-// NewClient creates a new Client that uses the pgx pool.
+// NewClient2 creates a new Client that uses the pgx pool.
+func NewClient2(pool *sql.DB) (*Client, error) {
+	stmtJobStats, err := pool.Prepare(sqlJobStats)
+	if err != nil {
+		return nil, err
+	}
+	return &Client{
+		pool:         pool,
+		stmtJobStats: stmtJobStats,
+		jobsManaged:  map[int64]*Job{},
+	}, nil
+}
+
+// NewClient creates a new Client that uses the pgx pool. Returns nil if the initialization fails.
 func NewClient(pool *sql.DB) *Client {
-	return &Client{pool: pool}
+	c, err := NewClient2(pool)
+	if err != nil {
+		return nil
+	}
+	return c
+}
+
+// Close disposes all the resources associated to the client
+func (c *Client) Close() {
+	if c.pool == nil {
+		return
+	}
+	c.stmtJobStats.Close()
+	for _, j := range c.jobsManaged {
+		j.Done()
+	}
+	c.pool = nil
+	c.jobsManaged = nil
+	c.stmtJobStats = nil
 }
 
 // ErrMissingType is returned when you attempt to enqueue a job with no Type
@@ -303,6 +347,7 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 		var ok bool
 		err = conn.QueryRow("que_check_job", j.Queue, j.Priority, j.RunAt, j.ID).Scan(&ok)
 		if err == nil {
+			c.jobsManaged[j.ID] = &j
 			return &j, nil
 		} else if err == pgx.ErrNoRows {
 			// Encountered job race condition; start over from the beginning.
@@ -340,4 +385,31 @@ func PrepareStatements(conn *pgx.Conn) error {
 		}
 	}
 	return nil
+}
+
+// Stats retrieves the stats of all the queues
+func (c *Client) Stats() (results []JobStats, err error) {
+	rows, err := c.stmtJobStats.Query()
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var result JobStats
+		err = rows.Scan(
+			&result.Queue,
+			&result.Type,
+			&result.Count,
+			&result.CountWorking,
+			&result.CountErrored,
+			&result.HighestErrorCount,
+			&result.OldestRunAt,
+		)
+		if err != nil {
+			return
+		}
+		results = append(results, result)
+	}
+	err = rows.Err()
+	return
 }

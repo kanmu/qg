@@ -114,7 +114,7 @@ LEFT JOIN (
   WHERE locktype = 'advisory'
 ) locks USING (job_id)
 GROUP BY queue, job_class
-ORDER BY count(*) DESC
+ORDER BY queue, job_class
 `
 
 	sqlWorkerStates = `
