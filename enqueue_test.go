@@ -7,7 +7,7 @@ import (
 
 func TestEnqueueOnlyType(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
+	defer truncateAndClose(c)
 
 	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
@@ -47,7 +47,7 @@ func TestEnqueueOnlyType(t *testing.T) {
 
 func TestEnqueueWithPriority(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
+	defer truncateAndClose(c)
 
 	want := int16(99)
 	if err := c.Enqueue(&Job{Type: "MyJob", Priority: want}); err != nil {
@@ -66,7 +66,7 @@ func TestEnqueueWithPriority(t *testing.T) {
 
 func TestEnqueueWithRunAt(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
+	defer truncateAndClose(c)
 
 	want := time.Now().Add(2 * time.Minute)
 	if err := c.Enqueue(&Job{Type: "MyJob", RunAt: want}); err != nil {
@@ -87,7 +87,7 @@ func TestEnqueueWithRunAt(t *testing.T) {
 
 func TestEnqueueWithArgs(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
+	defer truncateAndClose(c)
 
 	want := `{"arg1":0, "arg2":"a string"}`
 	if err := c.Enqueue(&Job{Type: "MyJob", Args: []byte(want)}); err != nil {
@@ -106,7 +106,7 @@ func TestEnqueueWithArgs(t *testing.T) {
 
 func TestEnqueueWithQueue(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
+	defer truncateAndClose(c)
 
 	want := "special-work-queue"
 	if err := c.Enqueue(&Job{Type: "MyJob", Queue: want}); err != nil {
@@ -125,7 +125,7 @@ func TestEnqueueWithQueue(t *testing.T) {
 
 func TestEnqueueWithEmptyType(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
+	defer truncateAndClose(c)
 
 	if err := c.Enqueue(&Job{Type: ""}); err != ErrMissingType {
 		t.Fatalf("want ErrMissingType, got %v", err)
@@ -134,7 +134,7 @@ func TestEnqueueWithEmptyType(t *testing.T) {
 
 func TestEnqueueInTx(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
+	defer truncateAndClose(c)
 
 	tx, err := c.pool.Begin()
 	if err != nil {

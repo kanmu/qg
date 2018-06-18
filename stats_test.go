@@ -6,7 +6,7 @@ import (
 
 func TestStats(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
+	defer truncateAndClose(c)
 
 	if err := c.Enqueue(&Job{Queue: "Q1", Type: "MyJob"}); err != nil {
 		t.Fatal(err)

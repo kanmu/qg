@@ -48,7 +48,7 @@ type Job struct {
 
 	mu      sync.Mutex
 	deleted bool
-	pool    *sql.DB
+	c       *Client
 	conn    *pgx.Conn
 	tx      Txer
 }
@@ -132,7 +132,7 @@ func (j *Job) Done() {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	if j.conn == nil || j.pool == nil {
+	if j.conn == nil || j.c == nil {
 		// already marked as done
 		return
 	}
@@ -144,9 +144,10 @@ func (j *Job) Done() {
 		log.Printf("failed to unlock job job_id=%d job_type=%s", j.ID, j.Type)
 	}
 
-	stdlib.ReleaseConn(j.pool, j.conn)
+	stdlib.ReleaseConn(j.c.pool, j.conn)
 	// j.pool.Release(j.conn)
-	j.pool = nil
+	j.c.dischargeJob(j)
+	j.c = nil
 	j.conn = nil
 }
 
@@ -172,6 +173,7 @@ func (j *Job) Error(msg string) error {
 type Client struct {
 	pool *sql.DB
 
+	mu           sync.Mutex
 	stmtJobStats *sql.Stmt
 	jobsManaged  map[int64]*Job
 	// TODO: add a way to specify default queueing options
@@ -201,6 +203,8 @@ func NewClient(pool *sql.DB) *Client {
 
 // Close disposes all the resources associated to the client
 func (c *Client) Close() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.pool == nil {
 		return
 	}
@@ -258,6 +262,18 @@ func execEnqueue(j *Job, q Queryer) error {
 	return err
 }
 
+func (c *Client) manageJob(j *Job) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.jobsManaged[j.ID] = j
+}
+
+func (c *Client) dischargeJob(j *Job) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.jobsManaged, j.ID)
+}
+
 // type bytea []byte
 //
 // func (b bytea) Encode(w *pgx.WriteBuf, oid pgx.Oid) error {
@@ -310,7 +326,7 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 		return nil, err
 	}
 
-	j := Job{pool: c.pool, conn: conn}
+	j := Job{c: c, conn: conn}
 
 	for i := 0; i < maxLockJobAttempts; i++ {
 		err = conn.QueryRow("que_lock_job", queue).Scan(
@@ -347,7 +363,7 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 		var ok bool
 		err = conn.QueryRow("que_check_job", j.Queue, j.Priority, j.RunAt, j.ID).Scan(&ok)
 		if err == nil {
-			c.jobsManaged[j.ID] = &j
+			c.manageJob(&j)
 			return &j, nil
 		} else if err == pgx.ErrNoRows {
 			// Encountered job race condition; start over from the beginning.
