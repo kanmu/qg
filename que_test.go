@@ -47,14 +47,20 @@ func openTestClientMaxConns(t testing.TB, maxConnections int) *Client {
 	db.SetMaxIdleConns(maxConnections)
 	// make lifetime sufficiently long
 	db.SetConnMaxLifetime(time.Duration(5 * time.Minute))
-	return NewClient(db)
+	c, err := NewClient2(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return c
 }
 
 func openTestClient(t testing.TB) *Client {
 	return openTestClientMaxConns(t, maxConn)
 }
 
-func truncateAndClose(pool *sql.DB) {
+func truncateAndClose(c *Client) {
+	pool := c.pool
+	c.Close()
 	if _, err := pool.Exec("TRUNCATE TABLE que_jobs"); err != nil {
 		panic(err)
 	}
