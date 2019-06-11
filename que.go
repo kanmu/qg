@@ -381,6 +381,7 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 			return nil, err
 		}
 	}
+	stdlib.ReleaseConn(c.pool, conn)
 	return nil, ErrAgain
 }
 
