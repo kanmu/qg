@@ -240,9 +240,7 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 	getBackendID := func(conn *pgx.Conn) int32 {
 		var backendID int32
 		err := conn.QueryRow(`
-			SELECT backendid
-			FROM pg_stat_get_backend_idset() psgb(backendid)
-			WHERE pg_stat_get_backend_pid(psgb.backendid) = pg_backend_pid()
+			SELECT pg_backend_pid()
 		`).Scan(&backendID)
 		if err != nil {
 			panic(err)
@@ -254,7 +252,7 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 		i := 0
 		for {
 			var waiting bool
-			err := conn.QueryRow(`SELECT pg_stat_get_backend_waiting($1)`, backendID).Scan(&waiting)
+			err := conn.QueryRow(`SELECT wait_event is not null from pg_stat_activity where pid=$1`, backendID).Scan(&waiting)
 			if err != nil {
 				panic(err)
 			}
