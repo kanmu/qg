@@ -1,6 +1,7 @@
 package qg
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"log"
@@ -55,25 +56,24 @@ type Job struct {
 
 // Queryer is interface for query
 type Queryer interface {
-	Exec(sql string, arguments ...interface{}) (sql.Result, error)
-	Query(sql string, args ...interface{}) (*sql.Rows, error)
-	QueryRow(sql string, args ...interface{}) *sql.Row
+	Exec(string, ...interface{}) (sql.Result, error)
+	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
+	Query(string, ...interface{}) (*sql.Rows, error)
+	QueryContext(context.Context, string, ...interface{}) (*sql.Rows, error)
+	QueryRow(string, ...interface{}) *sql.Row
+	QueryRowContext(context.Context, string, ...interface{}) *sql.Row
 }
 
 // Txer is interface for tx
 type Txer interface {
-	Exec(sql string, arguments ...interface{}) (sql.Result, error)
-	Query(sql string, args ...interface{}) (*sql.Rows, error)
-	QueryRow(sql string, args ...interface{}) *sql.Row
+	Queryer
 	Commit() error
 	Rollback() error
 }
 
 // Conner is interface for conn
 type Conner interface {
-	Exec(sql string, arguments ...interface{}) (sql.Result, error)
-	Query(sql string, args ...interface{}) (*sql.Rows, error)
-	QueryRow(sql string, args ...interface{}) *sql.Row
+	Queryer
 	Begin() (*sql.Tx, error)
 	Close() error
 }
