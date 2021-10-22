@@ -31,7 +31,8 @@ jobs:
     steps:
       - name: Prepare planter
         run: |
-          psql -U postgres -h localhost -d postgres -c 'CREATE DATABASE qgtest;'
+          psql -U postgres -h localhost -d postgres -c 'CREATE USER qgtest;'
+          psql -U postgres -h localhost -d postgres -c 'CREATE DATABASE qgtest OWNER qgtest;'
       - name: Install Go
         uses: actions/setup-go/@v2
         with:
