@@ -1,6 +1,6 @@
 # qg
 
-[![Build Status](https://travis-ci.org/achiku/qg.svg?branch=master)](https://travis-ci.org/achiku/qg)
+[![test](https://github.com/achiku/qg/actions/workflows/test.yml/badge.svg)](https://github.com/achiku/qg/actions/workflows/test.yml)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/achiku/qg/master/LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/achiku/qg)](https://goreportcard.com/report/github.com/achiku/qg)
 
@@ -18,6 +18,21 @@ First of all, [Que](https://github.com/chanks/que), and it's Go port [que-go](ht
 - Better logger interface to be able to switch whatever loggers developers want. 
 
 This library is still under heavy development, and might significantly change APIs.
+
+## Test
+
+```
+create user qgtest;
+create database qgtest owner qgtest;
+```
+
+```
+$ psql -U qgtest -d qgtest -f schema.sql
+```
+
+```
+go test -v
+```
 
 
 ## Great Resources
