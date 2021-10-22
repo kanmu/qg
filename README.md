@@ -1,6 +1,6 @@
 # qg
 
-[![Build Status](https://travis-ci.org/achiku/qg.svg?branch=master)](https://travis-ci.org/achiku/qg)
+[![test](https://github.com/achiku/qg/actions/workflows/test.yml/badge.svg)](https://github.com/achiku/qg/actions/workflows/test.yml)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/achiku/qg/master/LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/achiku/qg)](https://goreportcard.com/report/github.com/achiku/qg)
 
