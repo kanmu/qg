@@ -19,6 +19,21 @@ First of all, [Que](https://github.com/chanks/que), and it's Go port [que-go](ht
 
 This library is still under heavy development, and might significantly change APIs.
 
+## Test
+
+```
+create user qgtest;
+create database qgtest owner qgtest;
+```
+
+```
+$ psql -U qgtest -d qgtest -f schema.sql
+```
+
+```
+go test -v
+```
+
 
 ## Great Resources
 
