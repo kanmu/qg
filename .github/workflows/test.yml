@@ -16,7 +16,6 @@ jobs:
             # - macOS-latest
             # - windows-latest
         go:
-          - "1.18"
           - "1.17"
           - "1.16"
     services:
@@ -29,10 +28,11 @@ jobs:
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
-      - name: Prepare planter
+      - name: Prepare test database
         run: |
           psql -U postgres -h localhost -d postgres -c 'CREATE USER qgtest;'
           psql -U postgres -h localhost -d postgres -c 'CREATE DATABASE qgtest OWNER qgtest;'
+
       - name: Install Go
         uses: actions/setup-go/@v2
         with:
@@ -40,6 +40,9 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout/@v2
+
+      - name: Create table
+        run: psql -U qgtest -h localhost -d qgtest -f schema.sql
 
       - name: Run test
         run: go test -v ./...
