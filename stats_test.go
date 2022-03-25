@@ -17,36 +17,36 @@ func TestStats(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if 1 != len(stats) {
-		t.Errorf("1 != len(stats) (got %v)", len(stats))
+	if len(stats) != 1 {
+		t.Errorf("len(stats) != 1 (got %v)", len(stats))
 	}
 
-	if "Q1" != stats[0].Queue {
-		t.Errorf("\"Q1\" != stats[0].Queue (got %v)", stats[0].Queue)
+	if stats[0].Queue != "Q1" {
+		t.Errorf("stats[0].Queue != \"Q1\" (got %v)", stats[0].Queue)
 	}
 
-	if "MyJob" != stats[0].Type {
-		t.Errorf("\"MyJob\" != stats[0].Type (got %v)", stats[0].Type)
+	if stats[0].Type != "MyJob" {
+		t.Errorf("stats[0].Type != \"MyJob\" (got %v)", stats[0].Type)
 	}
 
-	if 1 != stats[0].Count {
-		t.Errorf("1 != stats[0].Count (got %v)", stats[0].Count)
+	if stats[0].Count != 1 {
+		t.Errorf("stats[0].Count != 1 (got %v)", stats[0].Count)
 	}
 
-	if 0 != stats[0].CountWorking {
-		t.Errorf("0 != stats[0].CountWorking (got %v)", stats[0].CountWorking)
+	if stats[0].CountWorking != 0 {
+		t.Errorf("stats[0].CountWorking != 0 (got %v)", stats[0].CountWorking)
 	}
 
-	if 0 != stats[0].CountErrored {
-		t.Errorf("0 != stats[0].CountErrored (got %v)", stats[0].CountErrored)
+	if stats[0].CountErrored != 0 {
+		t.Errorf("stats[0].CountErrored != 0 (got %v)", stats[0].CountErrored)
 	}
 
-	if 0 != stats[0].HighestErrorCount {
-		t.Errorf("0 != stats[0].HighestErrorCount (got %v)", stats[0].HighestErrorCount)
+	if stats[0].HighestErrorCount != 0 {
+		t.Errorf("stats[0].HighestErrorCount != 0 (got %v)", stats[0].HighestErrorCount)
 	}
 
 	if stats[0].OldestRunAt.IsZero() {
-		t.Errorf("false != stats[0].OldestRunAt.IsZero() (got %v)", stats[0].OldestRunAt.IsZero())
+		t.Errorf("stats[0].OldestRunAt.IsZero() != false (got %v)", stats[0].OldestRunAt.IsZero())
 	}
 
 	if err := c.Enqueue(&Job{Queue: "Q1", Type: "MyJob"}); err != nil {
@@ -58,36 +58,36 @@ func TestStats(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if 1 != len(stats) {
-		t.Errorf("1 != len(stats) (got %v)", len(stats))
+	if len(stats) != 1 {
+		t.Errorf("len(stats) != 1 (got %v)", len(stats))
 	}
 
-	if "Q1" != stats[0].Queue {
-		t.Errorf("\"Q1\" != stats[0].Queue (got %v)", stats[0].Queue)
+	if stats[0].Queue != "Q1" {
+		t.Errorf("stats[0].Queue != \"Q1\" (got %v)", stats[0].Queue)
 	}
 
-	if "MyJob" != stats[0].Type {
-		t.Errorf("\"MyJob\" != stats[0].Type (got %v)", stats[0].Type)
+	if stats[0].Type != "MyJob" {
+		t.Errorf("stats[0].Type != \"MyJob\" (got %v)", stats[0].Type)
 	}
 
-	if 2 != stats[0].Count {
-		t.Errorf("1 != stats[0].Count (got %v)", stats[0].Count)
+	if stats[0].Count != 2 {
+		t.Errorf("stats[0].Count != 1 (got %v)", stats[0].Count)
 	}
 
-	if 0 != stats[0].CountWorking {
-		t.Errorf("0 != stats[0].CountWorking (got %v)", stats[0].CountWorking)
+	if stats[0].CountWorking != 0 {
+		t.Errorf("stats[0].CountWorking != 0 (got %v)", stats[0].CountWorking)
 	}
 
-	if 0 != stats[0].CountErrored {
-		t.Errorf("0 != stats[0].CountErrored (got %v)", stats[0].CountErrored)
+	if stats[0].CountErrored != 0 {
+		t.Errorf("stats[0].CountErrored != 0 (got %v)", stats[0].CountErrored)
 	}
 
-	if 0 != stats[0].HighestErrorCount {
-		t.Errorf("0 != stats[0].HighestErrorCount (got %v)", stats[0].HighestErrorCount)
+	if stats[0].HighestErrorCount != 0 {
+		t.Errorf("stats[0].HighestErrorCount != 0 (got %v)", stats[0].HighestErrorCount)
 	}
 
 	if stats[0].OldestRunAt.IsZero() {
-		t.Errorf("false != stats[0].OldestRunAt.IsZero() (got %v)", stats[0].OldestRunAt.IsZero())
+		t.Errorf("stats[0].OldestRunAt.IsZero() != false (got %v)", stats[0].OldestRunAt.IsZero())
 	}
 
 	if err := c.Enqueue(&Job{Queue: "Q2", Type: "MyJob"}); err != nil {
@@ -99,64 +99,64 @@ func TestStats(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if 2 != len(stats) {
-		t.Errorf("1 != len(stats) (got %v)", len(stats))
+	if len(stats) != 2 {
+		t.Errorf("len(stats) != 1 (got %v)", len(stats))
 	}
 
-	if "Q1" != stats[0].Queue {
-		t.Errorf("\"Q1\" != stats[0].Queue (got %v)", stats[0].Queue)
+	if stats[0].Queue != "Q1" {
+		t.Errorf("stats[0].Queue != \"Q1\" (got %v)", stats[0].Queue)
 	}
 
-	if "MyJob" != stats[0].Type {
-		t.Errorf("\"MyJob\" != stats[0].Type (got %v)", stats[0].Type)
+	if stats[0].Type != "MyJob" {
+		t.Errorf("stats[0].Type != \"MyJob\" (got %v)", stats[0].Type)
 	}
 
-	if 2 != stats[0].Count {
-		t.Errorf("1 != stats[0].Count (got %v)", stats[0].Count)
+	if stats[0].Count != 2 {
+		t.Errorf("stats[0].Count != 1 (got %v)", stats[0].Count)
 	}
 
-	if 0 != stats[0].CountWorking {
-		t.Errorf("0 != stats[0].CountWorking (got %v)", stats[0].CountWorking)
+	if stats[0].CountWorking != 0 {
+		t.Errorf("stats[0].CountWorking != 0 (got %v)", stats[0].CountWorking)
 	}
 
-	if 0 != stats[0].CountErrored {
-		t.Errorf("0 != stats[0].CountErrored (got %v)", stats[0].CountErrored)
+	if stats[0].CountErrored != 0 {
+		t.Errorf("stats[0].CountErrored != 0 (got %v)", stats[0].CountErrored)
 	}
 
-	if 0 != stats[0].HighestErrorCount {
-		t.Errorf("0 != stats[0].HighestErrorCount (got %v)", stats[0].HighestErrorCount)
+	if stats[0].HighestErrorCount != 0 {
+		t.Errorf("stats[0].HighestErrorCount != 0 (got %v)", stats[0].HighestErrorCount)
 	}
 
 	if stats[0].OldestRunAt.IsZero() {
-		t.Errorf("false != stats[0].OldestRunAt.IsZero() (got %v)", stats[0].OldestRunAt.IsZero())
+		t.Errorf("stats[0].OldestRunAt.IsZero() != false (got %v)", stats[0].OldestRunAt.IsZero())
 	}
 
-	if "Q2" != stats[1].Queue {
-		t.Errorf("\"Q2\" != stats[1].Queue (got %v)", stats[1].Queue)
+	if stats[1].Queue != "Q2" {
+		t.Errorf("stats[1].Queue != \"Q2\" (got %v)", stats[1].Queue)
 	}
 
-	if "MyJob" != stats[1].Type {
-		t.Errorf("\"MyJob\" != stats[1].Type (got %v)", stats[1].Type)
+	if stats[1].Type != "MyJob" {
+		t.Errorf("stats[1].Type != \"MyJob\" (got %v)", stats[1].Type)
 	}
 
-	if 1 != stats[1].Count {
-		t.Errorf("1 != stats[1].Count (got %v)", stats[1].Count)
+	if stats[1].Count != 1 {
+		t.Errorf("stats[1].Count != 1 (got %v)", stats[1].Count)
 	}
 
-	if 0 != stats[1].CountWorking {
-		t.Errorf("0 != stats[1].CountWorking (got %v)", stats[1].CountWorking)
+	if stats[1].CountWorking != 0 {
+		t.Errorf("stats[1].CountWorking != 0 (got %v)", stats[1].CountWorking)
 	}
 
-	if 0 != stats[1].CountErrored {
-		t.Errorf("0 != stats[1].CountErrored (got %v)", stats[1].CountErrored)
+	if stats[1].CountErrored != 0 {
+		t.Errorf("stats[1].CountErrored != 0 (got %v)", stats[1].CountErrored)
 	}
 
-	if 0 != stats[1].HighestErrorCount {
-		t.Errorf("0 != stats[1].HighestErrorCount (got %v)", stats[1].HighestErrorCount)
+	if stats[1].HighestErrorCount != 0 {
+		t.Errorf("stats[1].HighestErrorCount != 0 (got %v)", stats[1].HighestErrorCount)
 	}
 
 	if stats[1].OldestRunAt.IsZero() {
-		t.Errorf("false != stats[1].OldestRunAt.IsZero() (got %v)", stats[1].OldestRunAt.IsZero())
+		t.Errorf("stats[1].OldestRunAt.IsZero() != false (got %v)", stats[1].OldestRunAt.IsZero())
 	}
 
 	if err := c.Enqueue(&Job{Queue: "Q1", Type: "AnotherJob"}); err != nil {
@@ -168,92 +168,92 @@ func TestStats(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if 3 != len(stats) {
-		t.Errorf("3 != len(stats) (got %v)", len(stats))
+	if len(stats) != 3 {
+		t.Errorf("len(stats) != 3 (got %v)", len(stats))
 	}
 
-	if "Q1" != stats[0].Queue {
-		t.Errorf("\"Q1\" != stats[0].Queue (got %v)", stats[0].Queue)
+	if stats[0].Queue != "Q1" {
+		t.Errorf("stats[0].Queue != \"Q1\" (got %v)", stats[0].Queue)
 	}
 
-	if "AnotherJob" != stats[0].Type {
-		t.Errorf("\"AnotherJob\" != stats[0].Type (got %v)", stats[0].Type)
+	if stats[0].Type != "AnotherJob" {
+		t.Errorf("stats[0].Type != \"AnotherJob\" (got %v)", stats[0].Type)
 	}
 
-	if 1 != stats[0].Count {
-		t.Errorf("1 != stats[0].Count (got %v)", stats[0].Count)
+	if stats[0].Count != 1 {
+		t.Errorf("stats[0].Count != 1 (got %v)", stats[0].Count)
 	}
 
-	if 0 != stats[0].CountWorking {
-		t.Errorf("0 != stats[0].CountWorking (got %v)", stats[0].CountWorking)
+	if stats[0].CountWorking != 0 {
+		t.Errorf("stats[0].CountWorking != 0 (got %v)", stats[0].CountWorking)
 	}
 
-	if 0 != stats[0].CountErrored {
-		t.Errorf("0 != stats[0].CountErrored (got %v)", stats[0].CountErrored)
+	if stats[0].CountErrored != 0 {
+		t.Errorf("stats[0].CountErrored != 0 (got %v)", stats[0].CountErrored)
 	}
 
-	if 0 != stats[0].HighestErrorCount {
-		t.Errorf("0 != stats[0].HighestErrorCount (got %v)", stats[0].HighestErrorCount)
-	}
-
-	if stats[0].OldestRunAt.IsZero() {
-		t.Errorf("false != stats[0].OldestRunAt.IsZero() (got %v)", stats[0].OldestRunAt.IsZero())
-	}
-
-	if "Q1" != stats[1].Queue {
-		t.Errorf("\"Q1\" != stats[1].Queue (got %v)", stats[1].Queue)
-	}
-
-	if "MyJob" != stats[1].Type {
-		t.Errorf("\"MyJob\" != stats[1].Type (got %v)", stats[1].Type)
-	}
-
-	if 2 != stats[1].Count {
-		t.Errorf("1 != stats[1].Count (got %v)", stats[1].Count)
-	}
-
-	if 0 != stats[1].CountWorking {
-		t.Errorf("0 != stats[1].CountWorking (got %v)", stats[1].CountWorking)
-	}
-
-	if 0 != stats[1].CountErrored {
-		t.Errorf("0 != stats[1].CountErrored (got %v)", stats[1].CountErrored)
-	}
-
-	if 0 != stats[1].HighestErrorCount {
-		t.Errorf("0 != stats[1].HighestErrorCount (got %v)", stats[1].HighestErrorCount)
+	if stats[0].HighestErrorCount != 0 {
+		t.Errorf("stats[0].HighestErrorCount != 0 (got %v)", stats[0].HighestErrorCount)
 	}
 
 	if stats[0].OldestRunAt.IsZero() {
-		t.Errorf("false != stats[0].OldestRunAt.IsZero() (got %v)", stats[0].OldestRunAt.IsZero())
+		t.Errorf("stats[0].OldestRunAt.IsZero() != false (got %v)", stats[0].OldestRunAt.IsZero())
 	}
 
-	if "Q2" != stats[2].Queue {
-		t.Errorf("\"Q2\" != stats[2].Queue (got %v)", stats[2].Queue)
+	if stats[1].Queue != "Q1" {
+		t.Errorf("stats[1].Queue != \"Q1\" (got %v)", stats[1].Queue)
 	}
 
-	if "MyJob" != stats[2].Type {
-		t.Errorf("\"MyJob\" != stats[2].Type (got %v)", stats[2].Type)
+	if stats[1].Type != "MyJob" {
+		t.Errorf("stats[1].Type != \"MyJob\" (got %v)", stats[1].Type)
 	}
 
-	if 1 != stats[2].Count {
-		t.Errorf("1 != stats[2].Count (got %v)", stats[2].Count)
+	if stats[1].Count != 2 {
+		t.Errorf("stats[1].Count != 1 (got %v)", stats[1].Count)
 	}
 
-	if 0 != stats[2].CountWorking {
-		t.Errorf("0 != stats[2].CountWorking (got %v)", stats[2].CountWorking)
+	if stats[1].CountWorking != 0 {
+		t.Errorf("stats[1].CountWorking != 0 (got %v)", stats[1].CountWorking)
 	}
 
-	if 0 != stats[2].CountErrored {
-		t.Errorf("0 != stats[2].CountErrored (got %v)", stats[2].CountErrored)
+	if stats[1].CountErrored != 0 {
+		t.Errorf("stats[1].CountErrored != 0 (got %v)", stats[1].CountErrored)
 	}
 
-	if 0 != stats[2].HighestErrorCount {
-		t.Errorf("0 != stats[2].HighestErrorCount (got %v)", stats[2].HighestErrorCount)
+	if stats[1].HighestErrorCount != 0 {
+		t.Errorf("stats[1].HighestErrorCount != 0 (got %v)", stats[1].HighestErrorCount)
+	}
+
+	if stats[0].OldestRunAt.IsZero() {
+		t.Errorf("stats[0].OldestRunAt.IsZero() != false (got %v)", stats[0].OldestRunAt.IsZero())
+	}
+
+	if stats[2].Queue != "Q2" {
+		t.Errorf("stats[2].Queue != \"Q2\" (got %v)", stats[2].Queue)
+	}
+
+	if stats[2].Type != "MyJob" {
+		t.Errorf("stats[2].Type != \"MyJob\" (got %v)", stats[2].Type)
+	}
+
+	if stats[2].Count != 1 {
+		t.Errorf("stats[2].Count != 1 (got %v)", stats[2].Count)
+	}
+
+	if stats[2].CountWorking != 0 {
+		t.Errorf("stats[2].CountWorking != 0 (got %v)", stats[2].CountWorking)
+	}
+
+	if stats[2].CountErrored != 0 {
+		t.Errorf("stats[2].CountErrored != 0 (got %v)", stats[2].CountErrored)
+	}
+
+	if stats[2].HighestErrorCount != 0 {
+		t.Errorf("stats[2].HighestErrorCount != 0 (got %v)", stats[2].HighestErrorCount)
 	}
 
 	if stats[2].OldestRunAt.IsZero() {
-		t.Errorf("false != stats[2].OldestRunAt.IsZero() (got %v)", stats[2].OldestRunAt.IsZero())
+		t.Errorf("stats[2].OldestRunAt.IsZero() != false (got %v)", stats[2].OldestRunAt.IsZero())
 	}
 
 	func() {
@@ -271,92 +271,92 @@ func TestStats(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if 3 != len(stats) {
-			t.Errorf("3 != len(stats) (got %v)", len(stats))
+		if len(stats) != 3 {
+			t.Errorf("len(stats) != 3 (got %v)", len(stats))
 		}
 
-		if "Q1" != stats[0].Queue {
-			t.Errorf("\"Q1\" != stats[0].Queue (got %v)", stats[0].Queue)
+		if stats[0].Queue != "Q1" {
+			t.Errorf("stats[0].Queue != \"Q1\" (got %v)", stats[0].Queue)
 		}
 
-		if "AnotherJob" != stats[0].Type {
-			t.Errorf("\"AnotherJob\" != stats[0].Type (got %v)", stats[0].Type)
+		if stats[0].Type != "AnotherJob" {
+			t.Errorf("stats[0].Type != \"AnotherJob\" (got %v)", stats[0].Type)
 		}
 
-		if 1 != stats[0].Count {
-			t.Errorf("1 != stats[0].Count (got %v)", stats[0].Count)
+		if stats[0].Count != 1 {
+			t.Errorf("stats[0].Count != 1 (got %v)", stats[0].Count)
 		}
 
-		if 0 != stats[0].CountWorking {
-			t.Errorf("0 != stats[0].CountWorking (got %v)", stats[0].CountWorking)
+		if stats[0].CountWorking != 0 {
+			t.Errorf("stats[0].CountWorking != 0 (got %v)", stats[0].CountWorking)
 		}
 
-		if 0 != stats[0].CountErrored {
-			t.Errorf("0 != stats[0].CountErrored (got %v)", stats[0].CountErrored)
+		if stats[0].CountErrored != 0 {
+			t.Errorf("stats[0].CountErrored != 0 (got %v)", stats[0].CountErrored)
 		}
 
-		if 0 != stats[0].HighestErrorCount {
-			t.Errorf("0 != stats[0].HighestErrorCount (got %v)", stats[0].HighestErrorCount)
-		}
-
-		if stats[0].OldestRunAt.IsZero() {
-			t.Errorf("false != stats[0].OldestRunAt.IsZero() (got %v)", stats[0].OldestRunAt.IsZero())
-		}
-
-		if "Q1" != stats[1].Queue {
-			t.Errorf("\"Q1\" != stats[1].Queue (got %v)", stats[1].Queue)
-		}
-
-		if "MyJob" != stats[1].Type {
-			t.Errorf("\"MyJob\" != stats[1].Type (got %v)", stats[1].Type)
-		}
-
-		if 2 != stats[1].Count {
-			t.Errorf("1 != stats[1].Count (got %v)", stats[1].Count)
-		}
-
-		if 1 != stats[1].CountWorking {
-			t.Errorf("1 != stats[1].CountWorking (got %v)", stats[1].CountWorking)
-		}
-
-		if 0 != stats[1].CountErrored {
-			t.Errorf("0 != stats[1].CountErrored (got %v)", stats[1].CountErrored)
-		}
-
-		if 0 != stats[1].HighestErrorCount {
-			t.Errorf("0 != stats[1].HighestErrorCount (got %v)", stats[1].HighestErrorCount)
+		if stats[0].HighestErrorCount != 0 {
+			t.Errorf("stats[0].HighestErrorCount != 0 (got %v)", stats[0].HighestErrorCount)
 		}
 
 		if stats[0].OldestRunAt.IsZero() {
-			t.Errorf("false != stats[0].OldestRunAt.IsZero() (got %v)", stats[0].OldestRunAt.IsZero())
+			t.Errorf("stats[0].OldestRunAt.IsZero() != false (got %v)", stats[0].OldestRunAt.IsZero())
 		}
 
-		if "Q2" != stats[2].Queue {
-			t.Errorf("\"Q2\" != stats[2].Queue (got %v)", stats[2].Queue)
+		if stats[1].Queue != "Q1" {
+			t.Errorf("stats[1].Queue != \"Q1\" (got %v)", stats[1].Queue)
 		}
 
-		if "MyJob" != stats[2].Type {
-			t.Errorf("\"MyJob\" != stats[2].Type (got %v)", stats[2].Type)
+		if stats[1].Type != "MyJob" {
+			t.Errorf("stats[1].Type != \"MyJob\" (got %v)", stats[1].Type)
 		}
 
-		if 1 != stats[2].Count {
-			t.Errorf("1 != stats[2].Count (got %v)", stats[2].Count)
+		if stats[1].Count != 2 {
+			t.Errorf("stats[1].Count != 1 (got %v)", stats[1].Count)
 		}
 
-		if 0 != stats[2].CountWorking {
-			t.Errorf("0 != stats[2].CountWorking (got %v)", stats[2].CountWorking)
+		if stats[1].CountWorking != 1 {
+			t.Errorf("stats[1].CountWorking != 1 (got %v)", stats[1].CountWorking)
 		}
 
-		if 0 != stats[2].CountErrored {
-			t.Errorf("0 != stats[2].CountErrored (got %v)", stats[2].CountErrored)
+		if stats[1].CountErrored != 0 {
+			t.Errorf("stats[1].CountErrored != 0 (got %v)", stats[1].CountErrored)
 		}
 
-		if 0 != stats[2].HighestErrorCount {
-			t.Errorf("0 != stats[2].HighestErrorCount (got %v)", stats[2].HighestErrorCount)
+		if stats[1].HighestErrorCount != 0 {
+			t.Errorf("stats[1].HighestErrorCount != 0 (got %v)", stats[1].HighestErrorCount)
+		}
+
+		if stats[0].OldestRunAt.IsZero() {
+			t.Errorf("stats[0].OldestRunAt.IsZero() != false (got %v)", stats[0].OldestRunAt.IsZero())
+		}
+
+		if stats[2].Queue != "Q2" {
+			t.Errorf("stats[2].Queue != \"Q2\" (got %v)", stats[2].Queue)
+		}
+
+		if stats[2].Type != "MyJob" {
+			t.Errorf("stats[2].Type != \"MyJob\" (got %v)", stats[2].Type)
+		}
+
+		if stats[2].Count != 1 {
+			t.Errorf("stats[2].Count != 1 (got %v)", stats[2].Count)
+		}
+
+		if stats[2].CountWorking != 0 {
+			t.Errorf("stats[2].CountWorking != 0 (got %v)", stats[2].CountWorking)
+		}
+
+		if stats[2].CountErrored != 0 {
+			t.Errorf("stats[2].CountErrored != 0 (got %v)", stats[2].CountErrored)
+		}
+
+		if stats[2].HighestErrorCount != 0 {
+			t.Errorf("stats[2].HighestErrorCount != 0 (got %v)", stats[2].HighestErrorCount)
 		}
 
 		if stats[2].OldestRunAt.IsZero() {
-			t.Errorf("false != stats[2].OldestRunAt.IsZero() (got %v)", stats[2].OldestRunAt.IsZero())
+			t.Errorf("stats[2].OldestRunAt.IsZero() != false (got %v)", stats[2].OldestRunAt.IsZero())
 		}
 	}()
 
@@ -376,92 +376,92 @@ func TestStats(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if 3 != len(stats) {
-			t.Errorf("3 != len(stats) (got %v)", len(stats))
+		if len(stats) != 3 {
+			t.Errorf("len(stats) != 3 (got %v)", len(stats))
 		}
 
-		if "Q1" != stats[0].Queue {
-			t.Errorf("\"Q1\" != stats[0].Queue (got %v)", stats[0].Queue)
+		if stats[0].Queue != "Q1" {
+			t.Errorf("stats[0].Queue != \"Q1\" (got %v)", stats[0].Queue)
 		}
 
-		if "AnotherJob" != stats[0].Type {
-			t.Errorf("\"AnotherJob\" != stats[0].Type (got %v)", stats[0].Type)
+		if stats[0].Type != "AnotherJob" {
+			t.Errorf("stats[0].Type != \"AnotherJob\" (got %v)", stats[0].Type)
 		}
 
-		if 1 != stats[0].Count {
-			t.Errorf("1 != stats[0].Count (got %v)", stats[0].Count)
+		if stats[0].Count != 1 {
+			t.Errorf("stats[0].Count != 1 (got %v)", stats[0].Count)
 		}
 
-		if 0 != stats[0].CountWorking {
-			t.Errorf("0 != stats[0].CountWorking (got %v)", stats[0].CountWorking)
+		if stats[0].CountWorking != 0 {
+			t.Errorf("stats[0].CountWorking != 0 (got %v)", stats[0].CountWorking)
 		}
 
-		if 0 != stats[0].CountErrored {
-			t.Errorf("0 != stats[0].CountErrored (got %v)", stats[0].CountErrored)
+		if stats[0].CountErrored != 0 {
+			t.Errorf("stats[0].CountErrored != 0 (got %v)", stats[0].CountErrored)
 		}
 
-		if 0 != stats[0].HighestErrorCount {
-			t.Errorf("0 != stats[0].HighestErrorCount (got %v)", stats[0].HighestErrorCount)
-		}
-
-		if stats[0].OldestRunAt.IsZero() {
-			t.Errorf("false != stats[0].OldestRunAt.IsZero() (got %v)", stats[0].OldestRunAt.IsZero())
-		}
-
-		if "Q1" != stats[1].Queue {
-			t.Errorf("\"Q1\" != stats[1].Queue (got %v)", stats[1].Queue)
-		}
-
-		if "MyJob" != stats[1].Type {
-			t.Errorf("\"MyJob\" != stats[1].Type (got %v)", stats[1].Type)
-		}
-
-		if 1 != stats[1].Count {
-			t.Errorf("1 != stats[1].Count (got %v)", stats[1].Count)
-		}
-
-		if 0 != stats[1].CountWorking {
-			t.Errorf("0 != stats[1].CountWorking (got %v)", stats[1].CountWorking)
-		}
-
-		if 0 != stats[1].CountErrored {
-			t.Errorf("0 != stats[1].CountErrored (got %v)", stats[1].CountErrored)
-		}
-
-		if 0 != stats[1].HighestErrorCount {
-			t.Errorf("0 != stats[1].HighestErrorCount (got %v)", stats[1].HighestErrorCount)
+		if stats[0].HighestErrorCount != 0 {
+			t.Errorf("stats[0].HighestErrorCount != 0 (got %v)", stats[0].HighestErrorCount)
 		}
 
 		if stats[0].OldestRunAt.IsZero() {
-			t.Errorf("false != stats[0].OldestRunAt.IsZero() (got %v)", stats[0].OldestRunAt.IsZero())
+			t.Errorf("stats[0].OldestRunAt.IsZero() != false (got %v)", stats[0].OldestRunAt.IsZero())
 		}
 
-		if "Q2" != stats[2].Queue {
-			t.Errorf("\"Q2\" != stats[2].Queue (got %v)", stats[2].Queue)
+		if stats[1].Queue != "Q1" {
+			t.Errorf("stats[1].Queue != \"Q1\" (got %v)", stats[1].Queue)
 		}
 
-		if "MyJob" != stats[2].Type {
-			t.Errorf("\"MyJob\" != stats[2].Type (got %v)", stats[2].Type)
+		if stats[1].Type != "MyJob" {
+			t.Errorf("stats[1].Type != \"MyJob\" (got %v)", stats[1].Type)
 		}
 
-		if 1 != stats[2].Count {
-			t.Errorf("1 != stats[2].Count (got %v)", stats[2].Count)
+		if stats[1].Count != 1 {
+			t.Errorf("stats[1].Count != 1 (got %v)", stats[1].Count)
 		}
 
-		if 0 != stats[2].CountWorking {
-			t.Errorf("0 != stats[2].CountWorking (got %v)", stats[2].CountWorking)
+		if stats[1].CountWorking != 0 {
+			t.Errorf("stats[1].CountWorking != 0 (got %v)", stats[1].CountWorking)
 		}
 
-		if 0 != stats[2].CountErrored {
-			t.Errorf("0 != stats[2].CountErrored (got %v)", stats[2].CountErrored)
+		if stats[1].CountErrored != 0 {
+			t.Errorf("stats[1].CountErrored != 0 (got %v)", stats[1].CountErrored)
 		}
 
-		if 0 != stats[2].HighestErrorCount {
-			t.Errorf("0 != stats[2].HighestErrorCount (got %v)", stats[2].HighestErrorCount)
+		if stats[1].HighestErrorCount != 0 {
+			t.Errorf("stats[1].HighestErrorCount != 0 (got %v)", stats[1].HighestErrorCount)
+		}
+
+		if stats[0].OldestRunAt.IsZero() {
+			t.Errorf("stats[0].OldestRunAt.IsZero() != false (got %v)", stats[0].OldestRunAt.IsZero())
+		}
+
+		if stats[2].Queue != "Q2" {
+			t.Errorf("stats[2].Queue != \"Q2\" (got %v)", stats[2].Queue)
+		}
+
+		if stats[2].Type != "MyJob" {
+			t.Errorf("stats[2].Type != \"MyJob\" (got %v)", stats[2].Type)
+		}
+
+		if stats[2].Count != 1 {
+			t.Errorf("stats[2].Count != 1 (got %v)", stats[2].Count)
+		}
+
+		if stats[2].CountWorking != 0 {
+			t.Errorf("stats[2].CountWorking != 0 (got %v)", stats[2].CountWorking)
+		}
+
+		if stats[2].CountErrored != 0 {
+			t.Errorf("stats[2].CountErrored != 0 (got %v)", stats[2].CountErrored)
+		}
+
+		if stats[2].HighestErrorCount != 0 {
+			t.Errorf("stats[2].HighestErrorCount != 0 (got %v)", stats[2].HighestErrorCount)
 		}
 
 		if stats[2].OldestRunAt.IsZero() {
-			t.Errorf("false != stats[2].OldestRunAt.IsZero() (got %v)", stats[2].OldestRunAt.IsZero())
+			t.Errorf("stats[2].OldestRunAt.IsZero() != false (got %v)", stats[2].OldestRunAt.IsZero())
 		}
 	}()
 
@@ -481,92 +481,92 @@ func TestStats(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if 3 != len(stats) {
-			t.Errorf("3 != len(stats) (got %v)", len(stats))
+		if len(stats) != 3 {
+			t.Errorf("len(stats) != 3 (got %v)", len(stats))
 		}
 
-		if "Q1" != stats[0].Queue {
-			t.Errorf("\"Q1\" != stats[0].Queue (got %v)", stats[0].Queue)
+		if stats[0].Queue != "Q1" {
+			t.Errorf("stats[0].Queue != \"Q1\" (got %v)", stats[0].Queue)
 		}
 
-		if "AnotherJob" != stats[0].Type {
-			t.Errorf("\"AnotherJob\" != stats[0].Type (got %v)", stats[0].Type)
+		if stats[0].Type != "AnotherJob" {
+			t.Errorf("stats[0].Type != \"AnotherJob\" (got %v)", stats[0].Type)
 		}
 
-		if 1 != stats[0].Count {
-			t.Errorf("1 != stats[0].Count (got %v)", stats[0].Count)
+		if stats[0].Count != 1 {
+			t.Errorf("stats[0].Count != 1 (got %v)", stats[0].Count)
 		}
 
-		if 0 != stats[0].CountWorking {
-			t.Errorf("0 != stats[0].CountWorking (got %v)", stats[0].CountWorking)
+		if stats[0].CountWorking != 0 {
+			t.Errorf("stats[0].CountWorking != 0 (got %v)", stats[0].CountWorking)
 		}
 
-		if 0 != stats[0].CountErrored {
-			t.Errorf("0 != stats[0].CountErrored (got %v)", stats[0].CountErrored)
+		if stats[0].CountErrored != 0 {
+			t.Errorf("stats[0].CountErrored != 0 (got %v)", stats[0].CountErrored)
 		}
 
-		if 0 != stats[0].HighestErrorCount {
-			t.Errorf("0 != stats[0].HighestErrorCount (got %v)", stats[0].HighestErrorCount)
-		}
-
-		if stats[0].OldestRunAt.IsZero() {
-			t.Errorf("false != stats[0].OldestRunAt.IsZero() (got %v)", stats[0].OldestRunAt.IsZero())
-		}
-
-		if "Q1" != stats[1].Queue {
-			t.Errorf("\"Q1\" != stats[1].Queue (got %v)", stats[1].Queue)
-		}
-
-		if "MyJob" != stats[1].Type {
-			t.Errorf("\"MyJob\" != stats[1].Type (got %v)", stats[1].Type)
-		}
-
-		if 1 != stats[1].Count {
-			t.Errorf("1 != stats[1].Count (got %v)", stats[1].Count)
-		}
-
-		if 0 != stats[1].CountWorking {
-			t.Errorf("0 != stats[1].CountWorking (got %v)", stats[1].CountWorking)
-		}
-
-		if 1 != stats[1].CountErrored {
-			t.Errorf("1 != stats[1].CountErrored (got %v)", stats[1].CountErrored)
-		}
-
-		if 1 != stats[1].HighestErrorCount {
-			t.Errorf("1 != stats[1].HighestErrorCount (got %v)", stats[1].HighestErrorCount)
+		if stats[0].HighestErrorCount != 0 {
+			t.Errorf("stats[0].HighestErrorCount != 0 (got %v)", stats[0].HighestErrorCount)
 		}
 
 		if stats[0].OldestRunAt.IsZero() {
-			t.Errorf("false != stats[0].OldestRunAt.IsZero() (got %v)", stats[0].OldestRunAt.IsZero())
+			t.Errorf("stats[0].OldestRunAt.IsZero() != false (got %v)", stats[0].OldestRunAt.IsZero())
 		}
 
-		if "Q2" != stats[2].Queue {
-			t.Errorf("\"Q2\" != stats[2].Queue (got %v)", stats[2].Queue)
+		if stats[1].Queue != "Q1" {
+			t.Errorf("stats[1].Queue != \"Q1\" (got %v)", stats[1].Queue)
 		}
 
-		if "MyJob" != stats[2].Type {
-			t.Errorf("\"MyJob\" != stats[2].Type (got %v)", stats[2].Type)
+		if stats[1].Type != "MyJob" {
+			t.Errorf("stats[1].Type != \"MyJob\" (got %v)", stats[1].Type)
 		}
 
-		if 1 != stats[2].Count {
-			t.Errorf("1 != stats[2].Count (got %v)", stats[2].Count)
+		if stats[1].Count != 1 {
+			t.Errorf("stats[1].Count != 1 (got %v)", stats[1].Count)
 		}
 
-		if 0 != stats[2].CountWorking {
-			t.Errorf("0 != stats[2].CountWorking (got %v)", stats[2].CountWorking)
+		if stats[1].CountWorking != 0 {
+			t.Errorf("stats[1].CountWorking != 0 (got %v)", stats[1].CountWorking)
 		}
 
-		if 0 != stats[2].CountErrored {
-			t.Errorf("0 != stats[2].CountErrored (got %v)", stats[2].CountErrored)
+		if stats[1].CountErrored != 1 {
+			t.Errorf("stats[1].CountErrored != 1 (got %v)", stats[1].CountErrored)
 		}
 
-		if 0 != stats[2].HighestErrorCount {
-			t.Errorf("0 != stats[2].HighestErrorCount (got %v)", stats[2].HighestErrorCount)
+		if stats[1].HighestErrorCount != 1 {
+			t.Errorf("stats[1].HighestErrorCount != 1 (got %v)", stats[1].HighestErrorCount)
+		}
+
+		if stats[0].OldestRunAt.IsZero() {
+			t.Errorf("stats[0].OldestRunAt.IsZero() != false (got %v)", stats[0].OldestRunAt.IsZero())
+		}
+
+		if stats[2].Queue != "Q2" {
+			t.Errorf("stats[2].Queue != \"Q2\" (got %v)", stats[2].Queue)
+		}
+
+		if stats[2].Type != "MyJob" {
+			t.Errorf("stats[2].Type != \"MyJob\" (got %v)", stats[2].Type)
+		}
+
+		if stats[2].Count != 1 {
+			t.Errorf("stats[2].Count != 1 (got %v)", stats[2].Count)
+		}
+
+		if stats[2].CountWorking != 0 {
+			t.Errorf("stats[2].CountWorking != 0 (got %v)", stats[2].CountWorking)
+		}
+
+		if stats[2].CountErrored != 0 {
+			t.Errorf("stats[2].CountErrored != 0 (got %v)", stats[2].CountErrored)
+		}
+
+		if stats[2].HighestErrorCount != 0 {
+			t.Errorf("stats[2].HighestErrorCount != 0 (got %v)", stats[2].HighestErrorCount)
 		}
 
 		if stats[2].OldestRunAt.IsZero() {
-			t.Errorf("false != stats[2].OldestRunAt.IsZero() (got %v)", stats[2].OldestRunAt.IsZero())
+			t.Errorf("stats[2].OldestRunAt.IsZero() != false (got %v)", stats[2].OldestRunAt.IsZero())
 		}
 	}()
 
