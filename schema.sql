@@ -13,3 +13,5 @@ CREATE TABLE que_jobs
 );
 
 COMMENT ON TABLE que_jobs IS '3';
+ALTER TABLE que_jobs ADD finished_at timestamptz;
+CREATE INDEX idx_que_jobs_finished_at ON que_jobs (finished_at);

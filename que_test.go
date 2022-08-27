@@ -72,7 +72,9 @@ func truncateAndClose(c *Client) {
 func findOneJob(q Queryer) (*Job, error) {
 	findSQL := `
 	SELECT priority, run_at, job_id, job_class, args, error_count, last_error, queue
-	FROM que_jobs LIMIT 1`
+	FROM que_jobs
+	WHERE finished_at IS NULL
+	LIMIT 1`
 
 	j := &Job{}
 	err := q.QueryRow(findSQL).Scan(

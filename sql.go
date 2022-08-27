@@ -33,6 +33,7 @@ WITH RECURSIVE job AS (
     FROM que_jobs AS j
     WHERE queue = $1::text
     AND run_at <= now()
+    AND finished_at IS NULL
     ORDER BY priority, run_at, job_id
     LIMIT 1
   ) AS t1
@@ -44,6 +45,7 @@ WITH RECURSIVE job AS (
         FROM que_jobs AS j
         WHERE queue = $1::text
         AND run_at <= now()
+        AND finished_at IS NULL
         AND (priority, run_at, job_id) > (job.priority, job.run_at, job.job_id)
         ORDER BY priority, run_at, job_id
         LIMIT 1
@@ -71,6 +73,7 @@ WHERE  queue    = $1::text
 AND    priority = $2::smallint
 AND    run_at   = $3::timestamptz
 AND    job_id   = $4::bigint
+AND    finished_at IS NULL
 `
 
 	sqlSetError = `
@@ -91,12 +94,14 @@ VALUES
 (coalesce($1::text, ''::text), coalesce($2::smallint, 100::smallint), coalesce($3::timestamptz, now()::timestamptz), $4::text, coalesce($5::json, '[]'::json))
 `
 
-	sqlDeleteJob = `
-DELETE FROM que_jobs
+	sqlFinishJob = `
+UPDATE que_jobs
+SET finished_at = $5::timestamptz
 WHERE queue    = $1::text
 AND   priority = $2::smallint
 AND   run_at   = $3::timestamptz
 AND   job_id   = $4::bigint
+AND   finished_at IS NULL
 `
 
 	sqlJobStats = `
@@ -113,6 +118,7 @@ LEFT JOIN (
   FROM pg_locks
   WHERE locktype = 'advisory'
 ) locks USING (job_id)
+WHERE finished_at IS NULL
 GROUP BY queue, job_class
 ORDER BY queue, job_class
 `

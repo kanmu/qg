@@ -75,7 +75,7 @@ func TestLockJob(t *testing.T) {
 		t.Errorf("want available=%d, got %d", want, available)
 	}
 
-	if err = j.Delete(); err != nil {
+	if err = j.Finish(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -147,7 +147,7 @@ func TestLockJobCustomQueue(t *testing.T) {
 		t.Fatal("wanted job, got none")
 	}
 
-	if err = j.Delete(); err != nil {
+	if err = j.Finish(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -394,7 +394,7 @@ func TestJobDelete(t *testing.T) {
 	}
 	defer j.Done()
 
-	if err = j.Delete(); err != nil {
+	if err = j.Finish(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -503,7 +503,7 @@ func TestJobDeleteFromTx(t *testing.T) {
 	}
 
 	// delete the job
-	if err = j.Delete(); err != nil {
+	if err = j.Finish(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -554,7 +554,7 @@ func TestJobDeleteFromTxRollback(t *testing.T) {
 	}
 
 	// delete the job
-	if err = j1.Delete(); err != nil {
+	if err = j1.Finish(); err != nil {
 		t.Fatal(err)
 	}
 

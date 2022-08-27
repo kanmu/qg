@@ -129,7 +129,7 @@ func (w *Worker) WorkOne() (didWork bool) {
 		return
 	}
 
-	if err = j.Delete(); err != nil {
+	if err = j.Finish(); err != nil {
 		log.Printf("attempting to delete job %d: %v", j.ID, err)
 	}
 	j.tx.Commit()

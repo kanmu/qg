@@ -109,7 +109,7 @@ func (j *Job) Tx() Txer {
 //
 // You must also later call Done() to return this job's database connection to
 // the pool.
-func (j *Job) Delete() error {
+func (j *Job) Finish() error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -117,7 +117,7 @@ func (j *Job) Delete() error {
 		return nil
 	}
 
-	_, err := j.conn.Exec("que_destroy_job", j.Queue, j.Priority, j.RunAt, j.ID)
+	_, err := j.conn.Exec("que_finish_job", j.Queue, j.Priority, j.RunAt, j.ID, time.Now())
 	if err != nil {
 		return err
 	}
@@ -386,12 +386,12 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 }
 
 var preparedStatements = map[string]string{
-	"que_check_job":   sqlCheckJob,
-	"que_destroy_job": sqlDeleteJob,
-	"que_insert_job":  sqlInsertJob,
-	"que_lock_job":    sqlLockJob,
-	"que_set_error":   sqlSetError,
-	"que_unlock_job":  sqlUnlockJob,
+	"que_check_job":  sqlCheckJob,
+	"que_finish_job": sqlFinishJob,
+	"que_insert_job": sqlInsertJob,
+	"que_lock_job":   sqlLockJob,
+	"que_set_error":  sqlSetError,
+	"que_unlock_job": sqlUnlockJob,
 }
 
 // PrepareStatements prepar statements

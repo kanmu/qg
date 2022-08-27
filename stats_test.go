@@ -369,7 +369,7 @@ func TestStats(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer j.Done()
-		j.Delete()
+		j.Finish()
 
 		stats, err = c.Stats()
 		if err != nil {
