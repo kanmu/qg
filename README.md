@@ -15,25 +15,18 @@ First of all, [Que](https://github.com/chanks/que), and it's Go port [que-go](ht
 - Transaction can be injected to a `Job` to make `WorkFunc` tests much easier.
 - Customizable `Job.Delete()`, `Job.Error()` to give more flexibility.
 - Synchronous execution option in `Client.Enqueue` and `Client.EnqueueInTx` for easy development.
-- Better logger interface to be able to switch whatever loggers developers want. 
+- Better logger interface to be able to switch whatever loggers developers want.
 
 This library is still under heavy development, and might significantly change APIs.
 
 ## Test
 
 ```
-create user qgtest;
-create database qgtest owner qgtest;
+docker-compose up -d
+make db
+make table
+make test
 ```
-
-```
-$ psql -U qgtest -d qgtest -f schema.sql
-```
-
-```
-go test -v
-```
-
 
 ## Great Resources
 
