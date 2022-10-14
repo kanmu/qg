@@ -1,4 +1,4 @@
-module github.com/achiku/qg
+module github.com/kanmu/qg
 
 go 1.16
 
