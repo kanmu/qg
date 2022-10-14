@@ -1,8 +1,8 @@
 # qg
 
-[![test](https://github.com/achiku/qg/actions/workflows/test.yml/badge.svg)](https://github.com/achiku/qg/actions/workflows/test.yml)
+[![test](https://github.com/kanmu/qg/actions/workflows/test.yml/badge.svg)](https://github.com/kanmu/qg/actions/workflows/test.yml)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/achiku/qg/master/LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/github.com/achiku/qg)](https://goreportcard.com/report/github.com/achiku/qg)
+[![Go Report Card](https://goreportcard.com/badge/github.com/kanmu/qg)](https://goreportcard.com/report/github.com/kanmu/qg)
 
 Ruby [Que](https://github.com/chanks/que) implementation in Go. This library is almost a fork of [que-go](https://github.com/bgentry/que-go), the great work of [bgentry](https://github.com/bgentry).
 
