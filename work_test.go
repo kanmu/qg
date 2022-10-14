@@ -219,7 +219,7 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stdlib.ReleaseConn(c.pool, unusedConn)
+	defer stdlib.ReleaseConn(c.pool, unusedConn) //nolint:errcheck
 
 	// We use two jobs: the first one is concurrently deleted, and the second
 	// one is returned by LockJob after recovering from the race condition.
@@ -356,7 +356,7 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 		panic(err)
 	}
 	ourBackendID := getBackendID(conn)
-	stdlib.ReleaseConn(c.pool, conn)
+	stdlib.ReleaseConn(c.pool, conn) //nolint:errcheck
 
 	// synchronization point
 	lockJobBackendIDChan <- ourBackendID

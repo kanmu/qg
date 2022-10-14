@@ -144,7 +144,7 @@ func (j *Job) Done() {
 		log.Printf("failed to unlock job job_id=%d job_type=%s", j.ID, j.Type)
 	}
 
-	stdlib.ReleaseConn(j.c.pool, j.conn)
+	stdlib.ReleaseConn(j.c.pool, j.conn) //nolint:errcheck
 	// j.pool.Release(j.conn)
 	j.c.dischargeJob(j)
 	j.c = nil
@@ -340,7 +340,7 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 		)
 		if err != nil {
 			// stdConn.Close()
-			stdlib.ReleaseConn(c.pool, conn)
+			stdlib.ReleaseConn(c.pool, conn) //nolint:errcheck
 			// c.pool.Release(conn)
 			if err == pgx.ErrNoRows {
 				return nil, nil
@@ -377,11 +377,11 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 		} else {
 			// stdConn.Close()
 			// c.pool.Release(conn)
-			stdlib.ReleaseConn(c.pool, conn)
+			stdlib.ReleaseConn(c.pool, conn) //nolint:errcheck
 			return nil, err
 		}
 	}
-	stdlib.ReleaseConn(c.pool, conn)
+	stdlib.ReleaseConn(c.pool, conn) //nolint:errcheck
 	return nil, ErrAgain
 }
 

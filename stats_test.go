@@ -369,7 +369,7 @@ func TestStats(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer j.Done()
-		j.Delete()
+		j.Delete() //nolint:errcheck
 
 		stats, err = c.Stats()
 		if err != nil {
@@ -473,7 +473,7 @@ func TestStats(t *testing.T) {
 		if j == nil {
 			t.Fatal(err)
 		}
-		j.Error("???")
+		j.Error("???") //nolint:errcheck
 		j.Done()
 
 		stats, err = c.Stats()
