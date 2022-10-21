@@ -2,7 +2,7 @@ package qg
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 }
 
 func TestWorkerWorkOne(t *testing.T) {
@@ -65,7 +65,7 @@ func TestWorkerShutdown(t *testing.T) {
 
 func BenchmarkWorker(b *testing.B) {
 	c := openTestClient(b)
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 	defer func() {
 		log.SetOutput(os.Stdout)
 	}()
@@ -123,7 +123,7 @@ func TestWorkerWorkReturnsError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	j, err := findOneJob(tx)
 	if err != nil {
@@ -166,7 +166,7 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	j, err := findOneJob(tx)
 	if err != nil {
@@ -229,7 +229,7 @@ func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	j, err := findOneJob(tx)
 	if err != nil {
