@@ -58,6 +58,7 @@ type Job struct {
 type Queryer interface {
 	Exec(string, ...interface{}) (sql.Result, error)
 	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
+	PrepareContext(context.Context, string) (*sql.Stmt, error)
 	Query(string, ...interface{}) (*sql.Rows, error)
 	QueryContext(context.Context, string, ...interface{}) (*sql.Rows, error)
 	QueryRow(string, ...interface{}) *sql.Row
