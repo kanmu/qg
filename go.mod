@@ -9,5 +9,5 @@ require (
 	github.com/lib/pq v1.10.3 // indirect
 	github.com/pkg/errors v0.8.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
-	gopkg.in/guregu/null.v3 v3.0.2-0.20160228005316-41961cea0328
+	gopkg.in/guregu/null.v3 v3.5.0
 )
