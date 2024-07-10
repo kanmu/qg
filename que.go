@@ -10,8 +10,9 @@ import (
 
 	null "gopkg.in/guregu/null.v3"
 
-	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/stdlib"
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // Job is a single unit of work for Que to perform.
@@ -50,33 +51,25 @@ type Job struct {
 	mu      sync.Mutex
 	deleted bool
 	c       *Client
-	conn    *pgx.Conn
+	conn    *pgxpool.Conn
 	tx      Txer
 }
 
 // Queryer is interface for query
 type Queryer interface {
-	Exec(string, ...interface{}) (sql.Result, error)
-	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
-	PrepareContext(context.Context, string) (*sql.Stmt, error)
-	Query(string, ...interface{}) (*sql.Rows, error)
-	QueryContext(context.Context, string, ...interface{}) (*sql.Rows, error)
-	QueryRow(string, ...interface{}) *sql.Row
-	QueryRowContext(context.Context, string, ...interface{}) *sql.Row
+	Begin(ctx context.Context) (pgx.Tx, error)
+	BeginFunc(ctx context.Context, f func(pgx.Tx) error) (err error)
+	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
+	QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error)
 }
 
 // Txer is interface for tx
 type Txer interface {
 	Queryer
-	Commit() error
-	Rollback() error
-}
-
-// Conner is interface for conn
-type Conner interface {
-	Queryer
-	Begin() (*sql.Tx, error)
-	Close() error
+	Commit(ctx context.Context) error
+	Rollback(ctx context.Context) error
 }
 
 // JobStats stores the statistics information for the queue and type
@@ -91,7 +84,7 @@ type JobStats struct {
 }
 
 // Conn returns transaction
-func (j *Job) Conn() *pgx.Conn {
+func (j *Job) Conn() *pgxpool.Conn {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -110,7 +103,7 @@ func (j *Job) Tx() Txer {
 //
 // You must also later call Done() to return this job's database connection to
 // the pool.
-func (j *Job) Delete() error {
+func (j *Job) Delete(ctx context.Context) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -118,7 +111,7 @@ func (j *Job) Delete() error {
 		return nil
 	}
 
-	_, err := j.conn.Exec("que_destroy_job", j.Queue, j.Priority, j.RunAt, j.ID)
+	_, err := j.conn.Exec(ctx, "que_destroy_job", j.Queue, j.Priority, j.RunAt, j.ID)
 	if err != nil {
 		return err
 	}
@@ -129,7 +122,7 @@ func (j *Job) Delete() error {
 
 // Done releases the Postgres advisory lock on the job and returns the database
 // connection to the pool.
-func (j *Job) Done() {
+func (j *Job) Done(ctx context.Context) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -141,12 +134,11 @@ func (j *Job) Done() {
 	var ok bool
 	// Swallow this error because we don't want an unlock failure to cause work to
 	// stop.
-	if err := j.conn.QueryRow("que_unlock_job", j.ID).Scan(&ok); err != nil {
+	if err := j.conn.QueryRow(ctx, "que_unlock_job", j.ID).Scan(&ok); err != nil {
 		log.Printf("failed to unlock job job_id=%d job_type=%s", j.ID, j.Type)
 	}
 
-	stdlib.ReleaseConn(j.c.pool, j.conn) //nolint:errcheck
-	// j.pool.Release(j.conn)
+	j.conn.Release()
 	j.c.dischargeJob(j)
 	j.c = nil
 	j.conn = nil
@@ -158,11 +150,11 @@ func (j *Job) Done() {
 //
 // You must also later call Done() to return this job's database connection to
 // the pool.
-func (j *Job) Error(msg string) error {
+func (j *Job) Error(ctx context.Context, msg string) error {
 	errorCount := j.ErrorCount + 1
 	delay := intPow(int(errorCount), 4) + 3 // TODO: configurable delay
 
-	_, err := j.conn.Exec("que_set_error", errorCount, delay, msg, j.Queue, j.Priority, j.RunAt, j.ID)
+	_, err := j.conn.Exec(ctx, "que_set_error", errorCount, delay, msg, j.Queue, j.Priority, j.RunAt, j.ID)
 	if err != nil {
 		return err
 	}
@@ -172,50 +164,33 @@ func (j *Job) Error(msg string) error {
 // Client is a Que client that can add jobs to the queue and remove jobs from
 // the queue.
 type Client struct {
-	pool *sql.DB
+	pool *pgxpool.Pool
 
 	mu           sync.Mutex
-	stmtJobStats *sql.Stmt
 	jobsManaged  map[int64]*Job
 	// TODO: add a way to specify default queueing options
 }
 
-// NewClient2 creates a new Client that uses the pgx pool.
-func NewClient2(pool *sql.DB) (*Client, error) {
-	stmtJobStats, err := pool.Prepare(sqlJobStats)
-	if err != nil {
-		return nil, err
-	}
+// NewClient creates a new Client that uses the pgx pool.
+func NewClient(pool *pgxpool.Pool) (*Client, error) {
 	return &Client{
 		pool:         pool,
-		stmtJobStats: stmtJobStats,
 		jobsManaged:  map[int64]*Job{},
 	}, nil
 }
 
-// NewClient creates a new Client that uses the pgx pool. Returns nil if the initialization fails.
-func NewClient(pool *sql.DB) *Client {
-	c, err := NewClient2(pool)
-	if err != nil {
-		return nil
-	}
-	return c
-}
-
 // Close disposes all the resources associated to the client
-func (c *Client) Close() {
+func (c *Client) Close(ctx context.Context) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.pool == nil {
 		return
 	}
-	c.stmtJobStats.Close()
 	for _, j := range c.jobsManaged {
-		j.Done()
+		j.Done(ctx)
 	}
 	c.pool = nil
 	c.jobsManaged = nil
-	c.stmtJobStats = nil
 }
 
 // ErrMissingType is returned when you attempt to enqueue a job with no Type
@@ -223,8 +198,8 @@ func (c *Client) Close() {
 var ErrMissingType = errors.New("job type must be specified")
 
 // Enqueue adds a job to the queue.
-func (c *Client) Enqueue(j *Job) error {
-	return execEnqueue(j, c.pool)
+func (c *Client) Enqueue(ctx context.Context, j *Job) error {
+	return execEnqueue(ctx, j, c.pool)
 }
 
 // EnqueueInTx adds a job to the queue within the scope of the transaction tx.
@@ -233,11 +208,11 @@ func (c *Client) Enqueue(j *Job) error {
 //
 // It is the caller's responsibility to Commit or Rollback the transaction after
 // this function is called.
-func (c *Client) EnqueueInTx(j *Job, tx *sql.Tx) error {
-	return execEnqueue(j, tx)
+func (c *Client) EnqueueInTx(ctx context.Context, j *Job, tx pgx.Tx) error {
+	return execEnqueue(ctx, j, tx)
 }
 
-func execEnqueue(j *Job, q Queryer) error {
+func execEnqueue(ctx context.Context, j *Job, q Queryer) error {
 	if j.Type == "" {
 		return ErrMissingType
 	}
@@ -257,9 +232,8 @@ func execEnqueue(j *Job, q Queryer) error {
 		Time:  j.RunAt,
 		Valid: !j.RunAt.IsZero(),
 	}
-	// args := bytea(j.Args)
 
-	_, err := q.Exec("que_insert_job", queue, priority, runAt, j.Type, j.Args)
+	_, err := q.Exec(ctx, "que_insert_job", queue, priority, runAt, j.Type, j.Args)
 	return err
 }
 
@@ -274,28 +248,6 @@ func (c *Client) dischargeJob(j *Job) {
 	defer c.mu.Unlock()
 	delete(c.jobsManaged, j.ID)
 }
-
-// type bytea []byte
-//
-// func (b bytea) Encode(w *pgx.WriteBuf, oid pgx.Oid) error {
-// 	if len(b) == 0 {
-// 		w.WriteInt32(-1)
-// 		return nil
-// 	}
-// 	w.WriteInt32(int32(len(b)))
-// 	w.WriteBytes(b)
-// 	return nil
-// }
-
-// func (b bytea) FormatCode() int16 {
-// 	return pgx.TextFormatCode
-// }
-
-// type queryable interface {
-// 	Exec(sql string, arguments ...interface{}) (commandTag pgx.CommandTag, err error)
-// 	Query(sql string, args ...interface{}) (*pgx.Rows, error)
-// 	QueryRow(sql string, args ...interface{}) *pgx.Row
-// }
 
 // Maximum number of loop iterations in LockJob before giving up.  This is to
 // avoid looping forever in case something is wrong.
@@ -321,8 +273,8 @@ var ErrAgain = errors.New("maximum number of LockJob attempts reached")
 //
 // After the Job has been worked, you must call either Done() or Error() on it
 // in order to return the database connection to the pool and remove the lock.
-func (c *Client) LockJob(queue string) (*Job, error) {
-	conn, err := stdlib.AcquireConn(c.pool)
+func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
+	conn, err := c.pool.Acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +282,7 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 	j := Job{c: c, conn: conn}
 
 	for i := 0; i < maxLockJobAttempts; i++ {
-		err = conn.QueryRow("que_lock_job", queue).Scan(
+		err = conn.QueryRow(ctx, "que_lock_job", queue).Scan(
 			&j.Queue,
 			&j.Priority,
 			&j.RunAt,
@@ -340,9 +292,8 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 			&j.ErrorCount,
 		)
 		if err != nil {
-			// stdConn.Close()
-			stdlib.ReleaseConn(c.pool, conn) //nolint:errcheck
-			// c.pool.Release(conn)
+			conn.Release()
+
 			if err == pgx.ErrNoRows {
 				return nil, nil
 			}
@@ -362,7 +313,7 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 		// I'm not sure how to reliably commit a transaction that deletes
 		// the job in a separate thread between lock_job and check_job.
 		var ok bool
-		err = conn.QueryRow("que_check_job", j.Queue, j.Priority, j.RunAt, j.ID).Scan(&ok)
+		err = conn.QueryRow(ctx, "que_check_job", j.Queue, j.Priority, j.RunAt, j.ID).Scan(&ok)
 		if err == nil {
 			c.manageJob(&j)
 			return &j, nil
@@ -373,16 +324,15 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 			// eventually causing the server to run out of locks.
 			//
 			// Also swallow the possible error, exactly like in Done.
-			_ = conn.QueryRow("que_unlock_job", j.ID).Scan(&ok)
+			_ = conn.QueryRow(ctx, "que_unlock_job", j.ID).Scan(&ok)
 			continue
 		} else {
-			// stdConn.Close()
-			// c.pool.Release(conn)
-			stdlib.ReleaseConn(c.pool, conn) //nolint:errcheck
+			conn.Release()
 			return nil, err
 		}
 	}
-	stdlib.ReleaseConn(c.pool, conn) //nolint:errcheck
+
+	conn.Release()
 	return nil, ErrAgain
 }
 
@@ -395,10 +345,10 @@ var preparedStatements = map[string]string{
 	"que_unlock_job":  sqlUnlockJob,
 }
 
-// PrepareStatements prepar statements
-func PrepareStatements(conn *pgx.Conn) error {
+// PrepareStatements prepare statements
+func PrepareStatements(ctx context.Context, conn *pgx.Conn) error {
 	for name, sql := range preparedStatements {
-		if _, err := conn.Prepare(name, sql); err != nil {
+		if _, err := conn.Prepare(ctx, name, sql); err != nil {
 			return err
 		}
 	}
@@ -406,8 +356,8 @@ func PrepareStatements(conn *pgx.Conn) error {
 }
 
 // Stats retrieves the stats of all the queues
-func (c *Client) Stats() (results []JobStats, err error) {
-	rows, err := c.stmtJobStats.Query()
+func (c *Client) Stats(ctx context.Context) (results []JobStats, err error) {
+	rows, err := c.pool.Query(ctx, sqlJobStats)
 	if err != nil {
 		return
 	}
