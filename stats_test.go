@@ -1,18 +1,20 @@
 package qg
 
 import (
+	"context"
 	"testing"
 )
 
 func TestStats(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
-	if err := c.Enqueue(&Job{Queue: "Q1", Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Queue: "Q1", Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	stats, err := c.Stats()
+	stats, err := c.Stats(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,11 +51,11 @@ func TestStats(t *testing.T) {
 		t.Errorf("stats[0].OldestRunAt.IsZero() != false (got %v)", stats[0].OldestRunAt.IsZero())
 	}
 
-	if err := c.Enqueue(&Job{Queue: "Q1", Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Queue: "Q1", Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	stats, err = c.Stats()
+	stats, err = c.Stats(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,11 +92,11 @@ func TestStats(t *testing.T) {
 		t.Errorf("stats[0].OldestRunAt.IsZero() != false (got %v)", stats[0].OldestRunAt.IsZero())
 	}
 
-	if err := c.Enqueue(&Job{Queue: "Q2", Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Queue: "Q2", Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	stats, err = c.Stats()
+	stats, err = c.Stats(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,11 +161,11 @@ func TestStats(t *testing.T) {
 		t.Errorf("stats[1].OldestRunAt.IsZero() != false (got %v)", stats[1].OldestRunAt.IsZero())
 	}
 
-	if err := c.Enqueue(&Job{Queue: "Q1", Type: "AnotherJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Queue: "Q1", Type: "AnotherJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	stats, err = c.Stats()
+	stats, err = c.Stats(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,16 +259,16 @@ func TestStats(t *testing.T) {
 	}
 
 	func() {
-		j, err := c.LockJob("Q1")
+		j, err := c.LockJob(ctx, "Q1")
 		if err != nil {
 			t.Fatal(err)
 		}
 		if j == nil {
 			t.Fatal(err)
 		}
-		defer j.Done()
+		defer j.Done(ctx)
 
-		stats, err = c.Stats()
+		stats, err = c.Stats(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -361,17 +363,17 @@ func TestStats(t *testing.T) {
 	}()
 
 	func() {
-		j, err := c.LockJob("Q1")
+		j, err := c.LockJob(ctx, "Q1")
 		if err != nil {
 			t.Fatal(err)
 		}
 		if j == nil {
 			t.Fatal(err)
 		}
-		defer j.Done()
-		j.Delete() //nolint:errcheck
+		defer j.Done(ctx)
+		j.Delete(ctx) //nolint:errcheck
 
-		stats, err = c.Stats()
+		stats, err = c.Stats(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -466,17 +468,17 @@ func TestStats(t *testing.T) {
 	}()
 
 	func() {
-		j, err := c.LockJob("Q1")
+		j, err := c.LockJob(ctx, "Q1")
 		if err != nil {
 			t.Fatal(err)
 		}
 		if j == nil {
 			t.Fatal(err)
 		}
-		j.Error("???") //nolint:errcheck
-		j.Done()
+		j.Error(ctx, "???") //nolint:errcheck
+		j.Done(ctx)
 
-		stats, err = c.Stats()
+		stats, err = c.Stats(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}

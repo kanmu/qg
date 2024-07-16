@@ -1,6 +1,7 @@
 package qg
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -14,8 +15,9 @@ func init() {
 }
 
 func TestWorkerWorkOne(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
 	success := false
 	wm := WorkMap{
@@ -26,16 +28,16 @@ func TestWorkerWorkOne(t *testing.T) {
 	}
 	w := NewWorker(c, wm)
 
-	didWork := w.WorkOne()
+	didWork := w.WorkOne(ctx)
 	if didWork {
 		t.Errorf("want didWork=false when no job was queued")
 	}
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	didWork = w.WorkOne()
+	didWork = w.WorkOne(ctx)
 	if !didWork {
 		t.Errorf("want didWork=true")
 	}
@@ -45,13 +47,14 @@ func TestWorkerWorkOne(t *testing.T) {
 }
 
 func TestWorkerShutdown(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
 	w := NewWorker(c, WorkMap{})
 	finished := false
 	go func() {
-		w.Work()
+		w.Work(ctx)
 		finished = true
 	}()
 	w.Shutdown()
@@ -64,24 +67,25 @@ func TestWorkerShutdown(t *testing.T) {
 }
 
 func BenchmarkWorker(b *testing.B) {
-	c := openTestClient(b)
+	ctx := context.Background()
+	c := openTestClient(ctx, b)
 	log.SetOutput(io.Discard)
 	defer func() {
 		log.SetOutput(os.Stdout)
 	}()
-	defer truncateAndClose(c)
+	defer truncateAndClose(ctx, c)
 
 	w := NewWorker(c, WorkMap{"Nil": nilWorker})
 
 	for i := 0; i < b.N; i++ {
-		if err := c.Enqueue(&Job{Type: "Nil"}); err != nil {
+		if err := c.Enqueue(ctx, &Job{Type: "Nil"}); err != nil {
 			log.Fatal(err)
 		}
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		w.WorkOne()
+		w.WorkOne(ctx)
 	}
 }
 
@@ -90,8 +94,9 @@ func nilWorker(j *Job) error {
 }
 
 func TestWorkerWorkReturnsError(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
 	called := 0
 	wm := WorkMap{
@@ -102,16 +107,16 @@ func TestWorkerWorkReturnsError(t *testing.T) {
 	}
 	w := NewWorker(c, wm)
 
-	didWork := w.WorkOne()
+	didWork := w.WorkOne(ctx)
 	if didWork {
 		t.Errorf("want didWork=false when no job was queued")
 	}
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	didWork = w.WorkOne()
+	didWork = w.WorkOne(ctx)
 	if !didWork {
 		t.Errorf("want didWork=true")
 	}
@@ -119,13 +124,13 @@ func TestWorkerWorkReturnsError(t *testing.T) {
 		t.Errorf("want called=1 was: %d", called)
 	}
 
-	tx, err := c.pool.Begin()
+	tx, err := c.pool.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback(ctx) //nolint:errcheck
 
-	j, err := findOneJob(tx)
+	j, err := findOneJob(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,8 +146,9 @@ func TestWorkerWorkReturnsError(t *testing.T) {
 }
 
 func TestWorkerWorkRescuesPanic(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
 	called := 0
 	wm := WorkMap{
@@ -153,22 +159,22 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 	}
 	w := NewWorker(c, wm)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	w.WorkOne()
+	w.WorkOne(ctx)
 	if called != 1 {
 		t.Errorf("want called=1 was: %d", called)
 	}
 
-	tx, err := c.pool.Begin()
+	tx, err := c.pool.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback(ctx) //nolint:errcheck
 
-	j, err := findOneJob(tx)
+	j, err := findOneJob(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,26 +197,24 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 }
 
 func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
-
-	currentConns := 2
-	availConns := 2
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
 	success := false
 	wm := WorkMap{}
 	w := NewWorker(c, wm)
 
-	didWork := w.WorkOne()
+	didWork := w.WorkOne(ctx)
 	if didWork {
 		t.Errorf("want didWork=false when no job was queued")
 	}
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	didWork = w.WorkOne()
+	didWork = w.WorkOne(ctx)
 	if !didWork {
 		t.Errorf("want didWork=true")
 	}
@@ -218,20 +222,18 @@ func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 		t.Errorf("want success=false")
 	}
 
-	if currentConns != c.pool.Stats().OpenConnections {
-		t.Errorf("want currentConns euqual: before=%d  after=%d", currentConns, c.pool.Stats().OpenConnections)
-	}
-	if availConns != c.pool.Stats().OpenConnections {
-		t.Errorf("want availConns euqual: before=%d  after=%d", availConns, c.pool.Stats().OpenConnections)
+	totalConns := c.pool.Stat().TotalConns()
+	if int(totalConns) != 2 {
+		t.Errorf("totalConns: expected=2  actual=%d", totalConns)
 	}
 
-	tx, err := c.pool.Begin()
+	tx, err := c.pool.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback(ctx) //nolint:errcheck
 
-	j, err := findOneJob(tx)
+	j, err := findOneJob(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}

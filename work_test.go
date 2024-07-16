@@ -1,24 +1,23 @@
 package qg
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/stdlib"
 )
 
 func TestLockJob(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClientMaxConns(ctx, t, 2)
+	defer truncateAndClose(ctx, c)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +28,7 @@ func TestLockJob(t *testing.T) {
 	if j.c == nil {
 		t.Fatal("want non-nil c on locked Job")
 	}
-	defer j.Done()
+	defer j.Done(ctx)
 
 	// check values of returned Job
 	if j.ID == 0 {
@@ -60,7 +59,7 @@ func TestLockJob(t *testing.T) {
 	// check for advisory lock
 	var count int64
 	query := "SELECT count(*) FROM pg_locks WHERE locktype=$1 AND objid=$2::bigint"
-	if err = j.c.pool.QueryRow(query, "advisory", j.ID).Scan(&count); err != nil {
+	if err = j.c.pool.QueryRow(ctx, query, "advisory", j.ID).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	if count != 1 {
@@ -69,49 +68,51 @@ func TestLockJob(t *testing.T) {
 
 	// make sure conn was checked out of pool
 	openedConn := 2 // one is for locking job, the other is for counting pg_locks
-	stat := c.pool.Stats()
-	available := stat.OpenConnections
-	if want := openedConn; available != want {
+	stat := c.pool.Stat()
+	available := stat.TotalConns()
+	if want := openedConn; int(available) != want {
 		t.Errorf("want available=%d, got %d", want, available)
 	}
 
-	if err = j.Delete(); err != nil {
+	if err = j.Delete(ctx); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestLockJobAlreadyLocked(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if j == nil {
 		t.Fatal("wanted job, got none")
 	}
-	defer j.Done()
+	defer j.Done(ctx)
 
-	j2, err := c.LockJob("")
+	j2, err := c.LockJob(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if j2 != nil {
-		defer j2.Done()
+		defer j2.Done(ctx)
 		t.Fatalf("wanted no job, got %+v", j2)
 	}
 }
 
 func TestLockJobNoJob(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,53 +122,55 @@ func TestLockJobNoJob(t *testing.T) {
 }
 
 func TestLockJobCustomQueue(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
-	if err := c.Enqueue(&Job{Type: "MyJob", Queue: "extra_priority"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob", Queue: "extra_priority"}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if j != nil {
-		j.Done()
+		j.Done(ctx)
 		t.Errorf("expected no job to be found with empty queue name, got %+v", j)
 	}
 
-	j, err = c.LockJob("extra_priority")
+	j, err = c.LockJob(ctx, "extra_priority")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer j.Done()
+	defer j.Done(ctx)
 
 	if j == nil {
 		t.Fatal("wanted job, got none")
 	}
 
-	if err = j.Delete(); err != nil {
+	if err = j.Delete(ctx); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestJobConn(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if j == nil {
 		t.Fatal("wanted job, got none")
 	}
-	defer j.Done()
+	defer j.Done(ctx)
 
 	if conn := j.Conn(); conn != j.conn {
 		t.Errorf("want %+v, got %+v", j.conn, conn)
@@ -175,21 +178,22 @@ func TestJobConn(t *testing.T) {
 }
 
 func TestJobConnRace(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if j == nil {
 		t.Fatal("wanted job, got none")
 	}
-	defer j.Done()
+	defer j.Done(ctx)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -201,7 +205,7 @@ func TestJobConnRace(t *testing.T) {
 		wg.Done()
 	}()
 	go func() {
-		j.Done()
+		j.Done(ctx)
 		wg.Done()
 	}()
 	wg.Wait()
@@ -209,37 +213,30 @@ func TestJobConnRace(t *testing.T) {
 
 // Test the race condition in LockJob
 func TestLockJobAdvisoryRace(t *testing.T) {
-	c := openTestClientMaxConns(t, 4)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClientMaxConns(ctx, t, 4)
+	defer truncateAndClose(ctx, c)
 
 	// *pgx.ConnPool doesn't support pools of only one connection.  Make sure
 	// the other one is busy so we know which backend will be used by LockJob
 	// below.
-	unusedConn, err := stdlib.AcquireConn(c.pool)
+	conn, err := c.pool.Acquire(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stdlib.ReleaseConn(c.pool, unusedConn) //nolint:errcheck
+	defer conn.Release()
 
 	// We use two jobs: the first one is concurrently deleted, and the second
 	// one is returned by LockJob after recovering from the race condition.
 	for i := 0; i < 2; i++ {
-		if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+		if err := c.Enqueue(ctx, &Job{Type: "MyJob"}); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	// helper functions
-	newConn := func() *pgx.Conn {
-		conn, err := pgx.Connect(testConnConfig)
-		if err != nil {
-			panic(err)
-		}
-		return conn
-	}
-	getBackendID := func(conn *pgx.Conn) int32 {
+	getBackendID := func(q Queryer) int32 {
 		var backendID int32
-		err := conn.QueryRow(`
+		err := q.QueryRow(ctx, `
 			SELECT pg_backend_pid()
 		`).Scan(&backendID)
 		if err != nil {
@@ -248,11 +245,11 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 		return backendID
 	}
 	waitUntilBackendIsWaiting := func(backendID int32, name string) {
-		conn := newConn()
+		conn := newConn(ctx)
 		i := 0
 		for {
 			var waiting bool
-			err := conn.QueryRow(`SELECT wait_event is not null from pg_stat_activity where pid=$1`, backendID).Scan(&waiting)
+			err := conn.QueryRow(ctx, `SELECT wait_event is not null from pg_stat_activity where pid=$1`, backendID).Scan(&waiting)
 			if err != nil {
 				panic(err)
 			}
@@ -288,14 +285,14 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 	secondAccessExclusiveBackendIDChan := make(chan int32)
 
 	go func() {
-		conn := newConn()
-		defer conn.Close()
+		conn := newConn(ctx)
+		defer conn.Close(ctx)
 
-		tx, err := conn.Begin()
+		tx, err := conn.Begin(ctx)
 		if err != nil {
 			panic(err)
 		}
-		_, err = tx.Exec(`LOCK TABLE que_jobs IN ACCESS EXCLUSIVE MODE`)
+		_, err = tx.Exec(ctx, `LOCK TABLE que_jobs IN ACCESS EXCLUSIVE MODE`)
 		if err != nil {
 			panic(err)
 		}
@@ -308,31 +305,31 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 		backendID = <-secondAccessExclusiveBackendIDChan
 		waitUntilBackendIsWaiting(backendID, "second access exclusive lock")
 
-		err = tx.Rollback()
+		err = tx.Rollback(ctx)
 		if err != nil {
 			panic(err)
 		}
 	}()
 
 	go func() {
-		conn := newConn()
-		defer conn.Close()
+		conn := newConn(ctx)
+		defer conn.Close(ctx)
 
 		// synchronization point
 		secondAccessExclusiveBackendIDChan <- getBackendID(conn)
 
-		tx, err := conn.Begin()
+		tx, err := conn.Begin(ctx)
 		if err != nil {
 			panic(err)
 		}
-		_, err = tx.Exec(`LOCK TABLE que_jobs IN ACCESS EXCLUSIVE MODE`)
+		_, err = tx.Exec(ctx, `LOCK TABLE que_jobs IN ACCESS EXCLUSIVE MODE`)
 		if err != nil {
 			panic(err)
 		}
 
 		// Fake a concurrent transaction grabbing the job
 		var jid int64
-		err = tx.QueryRow(`
+		err = tx.QueryRow(ctx, `
 			DELETE FROM que_jobs
 			WHERE job_id =
 				(SELECT min(job_id)
@@ -345,61 +342,58 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 
 		deletedJobIDChan <- jid
 
-		err = tx.Commit()
+		err = tx.Commit(ctx)
 		if err != nil {
 			panic(err)
 		}
 	}()
 
-	conn, err := stdlib.AcquireConn(c.pool)
+	conn, err = c.pool.Acquire(ctx)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	ourBackendID := getBackendID(conn)
-	stdlib.ReleaseConn(c.pool, conn) //nolint:errcheck
+	conn.Release()
 
 	// synchronization point
 	lockJobBackendIDChan <- ourBackendID
 
-	job, err := c.LockJob("")
+	job, err := c.LockJob(ctx, "")
 	if err != nil {
 		panic(err)
 	}
-	defer job.Done()
+	defer job.Done(ctx)
 
 	deletedJobID := <-deletedJobIDChan
-
-	t.Logf("Got id %d", job.ID)
-	t.Logf("Concurrently deleted id %d", deletedJobID)
-
 	if deletedJobID >= job.ID {
 		t.Fatalf("deleted job id %d must be smaller than job.ID %d", deletedJobID, job.ID)
 	}
 }
 
 func TestJobDelete(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if j == nil {
 		t.Fatal("wanted job, got none")
 	}
-	defer j.Done()
+	defer j.Done(ctx)
 
-	if err = j.Delete(); err != nil {
+	if err = j.Delete(ctx); err != nil {
 		t.Fatal(err)
 	}
 
 	// make sure job was deleted
-	j2, err := findOneJob(c.pool)
+	j2, err := findOneJob(ctx, c.pool)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -409,14 +403,15 @@ func TestJobDelete(t *testing.T) {
 }
 
 func TestJobDone(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -424,7 +419,7 @@ func TestJobDone(t *testing.T) {
 		t.Fatal("wanted job, got none")
 	}
 
-	j.Done()
+	j.Done(ctx)
 
 	// make sure conn and pool were cleared
 	if j.conn != nil {
@@ -437,7 +432,7 @@ func TestJobDone(t *testing.T) {
 	// make sure lock was released
 	var count int64
 	query := "SELECT count(*) FROM pg_locks WHERE locktype=$1 AND objid=$2::bigint"
-	if err = c.pool.QueryRow(query, "advisory", j.ID).Scan(&count); err != nil {
+	if err = c.pool.QueryRow(ctx, query, "advisory", j.ID).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	if count != 0 {
@@ -445,23 +440,24 @@ func TestJobDone(t *testing.T) {
 	}
 
 	// make sure conn was returned to pool
-	openedConn := 1
-	stat := c.pool.Stats()
-	available := stat.OpenConnections
-	if openedConn != available {
-		t.Errorf("want available=total, got available=%d total=%d", available, openedConn)
+	opendConn := 1
+	stat := c.pool.Stat()
+	available := stat.TotalConns()
+	if opendConn != int(available) {
+		t.Errorf("want available=total, got available=%d total=%d", available, opendConn)
 	}
 }
 
 func TestJobDoneMultiple(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -469,20 +465,21 @@ func TestJobDoneMultiple(t *testing.T) {
 		t.Fatal("wanted job, got none")
 	}
 
-	j.Done()
+	j.Done(ctx)
 	// try calling Done() again
-	j.Done()
+	j.Done(ctx)
 }
 
 func TestJobDeleteFromTx(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -497,25 +494,25 @@ func TestJobDeleteFromTx(t *testing.T) {
 	}
 
 	// start a transaction
-	tx, err := conn.Begin()
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// delete the job
-	if err = j.Delete(); err != nil {
+	if err = j.Delete(ctx); err != nil {
 		t.Fatal(err)
 	}
 
-	if err = tx.Commit(); err != nil {
+	if err = tx.Commit(ctx); err != nil {
 		t.Fatal(err)
 	}
 
 	// mark as done
-	j.Done()
+	j.Done(ctx)
 
 	// make sure the job is gone
-	j2, err := findOneJob(c.pool)
+	j2, err := findOneJob(ctx, c.pool)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -526,14 +523,15 @@ func TestJobDeleteFromTx(t *testing.T) {
 }
 
 func TestJobDeleteFromTxRollback(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	j1, err := c.LockJob("")
+	j1, err := c.LockJob(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -548,30 +546,28 @@ func TestJobDeleteFromTxRollback(t *testing.T) {
 	}
 
 	// start a transaction
-	tx, err := conn.Begin()
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// delete the job
-	if err = j1.Delete(); err != nil {
+	if err = j1.Delete(ctx); err != nil {
 		t.Fatal(err)
 	}
 
-	if err = tx.Rollback(); err != nil {
+	if err = tx.Rollback(ctx); err != nil {
 		t.Fatal(err)
 	}
 
 	// mark as done
-	j1.Done()
+	j1.Done(ctx)
 
 	// make sure the job still exists and matches j1
-	j2, err := findOneJob(c.pool)
+	j2, err := findOneJob(ctx, c.pool)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("j1=%+v", j1)
-	t.Logf("j2=%+v", j2)
 
 	if j1.ID != j2.ID {
 		t.Errorf("want job %d, got %d", j1.ID, j2.ID)
@@ -579,37 +575,38 @@ func TestJobDeleteFromTxRollback(t *testing.T) {
 }
 
 func TestJobError(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if j == nil {
 		t.Fatal("wanted job, got none")
 	}
-	defer j.Done()
+	defer j.Done(ctx)
 
 	msg := "world\nended"
-	if err = j.Error(msg); err != nil {
+	if err = j.Error(ctx, msg); err != nil {
 		t.Fatal(err)
 	}
-	j.Done()
+	j.Done(ctx)
 
 	// make sure job was not deleted
-	j2, err := findOneJob(c.pool)
+	j2, err := findOneJob(ctx, c.pool)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if j2 == nil {
 		t.Fatal("job was not found")
 	}
-	defer j2.Done()
+	defer j2.Done(ctx)
 
 	if !j2.LastError.Valid || j2.LastError.String != msg {
 		t.Errorf("want LastError=%q, got %q", msg, j2.LastError.String)
@@ -621,7 +618,7 @@ func TestJobError(t *testing.T) {
 	// make sure lock was released
 	var count int64
 	query := "SELECT count(*) FROM pg_locks WHERE locktype=$1 AND objid=$2::bigint"
-	if err = c.pool.QueryRow(query, "advisory", j.ID).Scan(&count); err != nil {
+	if err = c.pool.QueryRow(ctx, query, "advisory", j.ID).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	if count != 0 {
@@ -630,9 +627,9 @@ func TestJobError(t *testing.T) {
 
 	// make sure conn was returned to pool
 	openedConn := 1
-	stat := c.pool.Stats()
-	available := stat.OpenConnections
-	if openedConn != available {
+	stat := c.pool.Stat()
+	available := stat.TotalConns()
+	if openedConn != int(available) {
 		t.Errorf("want available=total, got available=%d total=%d", available, openedConn)
 	}
 }

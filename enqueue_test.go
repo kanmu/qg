@@ -1,19 +1,21 @@
 package qg
 
 import (
+	"context"
 	"testing"
 	"time"
 )
 
 func TestEnqueueOnlyType(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := findOneJob(c.pool)
+	j, err := findOneJob(ctx, c.pool)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,15 +48,16 @@ func TestEnqueueOnlyType(t *testing.T) {
 }
 
 func TestEnqueueWithPriority(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
 	want := int16(99)
-	if err := c.Enqueue(&Job{Type: "MyJob", Priority: want}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob", Priority: want}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := findOneJob(c.pool)
+	j, err := findOneJob(ctx, c.pool)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,15 +68,16 @@ func TestEnqueueWithPriority(t *testing.T) {
 }
 
 func TestEnqueueWithRunAt(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
 	want := time.Now().Add(2 * time.Minute)
-	if err := c.Enqueue(&Job{Type: "MyJob", RunAt: want}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob", RunAt: want}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := findOneJob(c.pool)
+	j, err := findOneJob(ctx, c.pool)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,15 +90,16 @@ func TestEnqueueWithRunAt(t *testing.T) {
 }
 
 func TestEnqueueWithArgs(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
 	want := `{"arg1":0, "arg2":"a string"}`
-	if err := c.Enqueue(&Job{Type: "MyJob", Args: []byte(want)}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob", Args: []byte(want)}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := findOneJob(c.pool)
+	j, err := findOneJob(ctx, c.pool)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,15 +110,16 @@ func TestEnqueueWithArgs(t *testing.T) {
 }
 
 func TestEnqueueWithQueue(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
 	want := "special-work-queue"
-	if err := c.Enqueue(&Job{Type: "MyJob", Queue: want}); err != nil {
+	if err := c.Enqueue(ctx, &Job{Type: "MyJob", Queue: want}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := findOneJob(c.pool)
+	j, err := findOneJob(ctx, c.pool)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,29 +130,31 @@ func TestEnqueueWithQueue(t *testing.T) {
 }
 
 func TestEnqueueWithEmptyType(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
-	if err := c.Enqueue(&Job{Type: ""}); err != ErrMissingType {
+	if err := c.Enqueue(ctx, &Job{Type: ""}); err != ErrMissingType {
 		t.Fatalf("want ErrMissingType, got %v", err)
 	}
 }
 
 func TestEnqueueInTx(t *testing.T) {
-	c := openTestClient(t)
-	defer truncateAndClose(c)
+	ctx := context.Background()
+	c := openTestClient(ctx, t)
+	defer truncateAndClose(ctx, c)
 
-	tx, err := c.pool.Begin()
+	tx, err := c.pool.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback(ctx) //nolint:errcheck
 
-	if err = c.EnqueueInTx(&Job{Type: "MyJob"}, tx); err != nil {
+	if err = c.EnqueueInTx(ctx, &Job{Type: "MyJob"}, tx); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := findOneJob(tx)
+	j, err := findOneJob(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,11 +162,11 @@ func TestEnqueueInTx(t *testing.T) {
 		t.Fatal("want job, got none")
 	}
 
-	if err = tx.Rollback(); err != nil {
+	if err = tx.Rollback(ctx); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err = findOneJob(c.pool)
+	j, err = findOneJob(ctx, c.pool)
 	if err != nil {
 		t.Fatal(err)
 	}
