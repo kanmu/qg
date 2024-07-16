@@ -14,3 +14,7 @@ db:
 .PHONY: table
 table:
 	psql -U qgtest -h localhost -d qgtest -f schema.sql
+
+.PHONY: lint
+lint:
+	golangci-lint run
