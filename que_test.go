@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func newConn(ctx context.Context) *pgx.Conn {
@@ -34,7 +34,7 @@ func openTestClientMaxConns(ctx context.Context, t testing.TB, maxConnections in
 	// make lifetime sufficiently long
 	config.MaxConnLifetime = 5 * time.Minute
 
-	pool, err := pgxpool.ConnectConfig(ctx, config)
+	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		t.Fatal(err)
 	}
