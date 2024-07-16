@@ -36,7 +36,7 @@ func openTestClientMaxConns(ctx context.Context, t testing.TB, maxConnections in
 
 	pool, err := pgxpool.ConnectConfig(ctx, config)
 	if err != nil {
-			t.Fatal(err)
+		t.Fatal(err)
 	}
 
 	c, err := NewClient(pool)
