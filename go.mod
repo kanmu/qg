@@ -1,4 +1,4 @@
-module github.com/kanmu/qg
+module github.com/kanmu/qg/v3
 
 go 1.16
 
