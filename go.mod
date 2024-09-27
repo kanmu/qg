@@ -1,6 +1,6 @@
 module github.com/kanmu/qg/v3
 
-go 1.21
+go 1.21.13
 
 require (
 	github.com/jackc/pgx/v5 v5.7.1
