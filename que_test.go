@@ -5,51 +5,32 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/stdlib"
+	"github.com/jackc/pgx/v4"
 )
 
-var testConnConfig = pgx.ConnConfig{
-	Host:     "localhost",
-	Database: "qgtest",
-	User:     "qgtest",
-	// LogLevel: pgx.LogLevelDebug,
-	// Logger:   log15.New("testlogger", "test/qg"),
-}
+var testConnConfig = func() *pgx.ConnConfig {
+	conn, _ := pgx.ParseConfig("postgres://qgtest@localhost:5432/qgtest")
+	// conn.LogLevel = pgx.LogLevelDebug
+	// conn.Logger = log15.New("testlogger", "test/qg")
+	return conn
+}()
 
 const maxConn = 5
 
 func openTestClientMaxConns(t testing.TB, maxConnections int) *Client {
-	// connPoolConfig := pgx.ConnPoolConfig{
-	// 	ConnConfig:     testConnConfig,
-	// 	MaxConnections: maxConnections,
-	// 	AfterConnect:   PrepareStatements,
-	// }
-	// pool, err := pgx.NewConnPool(connPoolConfig)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	driverConfig := stdlib.DriverConfig{
-		ConnConfig: pgx.ConnConfig{
-			Host:     "localhost",
-			Database: "qgtest",
-			User:     "qgtest",
-		},
-		AfterConnect: PrepareStatements,
-	}
-	stdlib.RegisterDriverConfig(&driverConfig)
-	db, err := sql.Open("pgx", driverConfig.ConnectionString(""))
+	connector, err := GetConnector("localhost", 5432, "qgtest", "", "qgtest")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// using stdlib, it's difficult to open max conn from the begining
+	db := sql.OpenDB(connector)
+	// using stdlib, it's difficult to open max conn from the beginning
 	// if we want to open connections till its limit, need to use go routine to
 	// concurrently open connections
 	db.SetMaxOpenConns(maxConnections)
 	db.SetMaxIdleConns(maxConnections)
 	// make lifetime sufficiently long
 	db.SetConnMaxLifetime(time.Duration(5 * time.Minute))
-	c, err := NewClient2(db)
+	c, err := NewClient(db)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -10,8 +10,8 @@ import (
 
 	null "gopkg.in/guregu/null.v3"
 
-	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/stdlib"
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/stdlib"
 )
 
 // Job is a single unit of work for Que to perform.
@@ -50,7 +50,7 @@ type Job struct {
 	mu      sync.Mutex
 	deleted bool
 	c       *Client
-	conn    *pgx.Conn
+	conn    *sql.Conn
 	tx      Txer
 }
 
@@ -91,7 +91,9 @@ type JobStats struct {
 }
 
 // Conn returns transaction
-func (j *Job) Conn() *pgx.Conn {
+//
+// Deprecated: This is an internal method. DON'T USE IT.
+func (j *Job) Conn() *sql.Conn {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -106,11 +108,16 @@ func (j *Job) Tx() Txer {
 	return j.tx
 }
 
+// Same as DeleteContext function (without context.Context).
+func (j *Job) Delete() error {
+	return j.DeleteContext(context.Background())
+}
+
 // Delete marks this job as complete by deleting it form the database.
 //
 // You must also later call Done() to return this job's database connection to
 // the pool.
-func (j *Job) Delete() error {
+func (j *Job) DeleteContext(ctx context.Context) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -118,7 +125,12 @@ func (j *Job) Delete() error {
 		return nil
 	}
 
-	_, err := j.conn.Exec("que_destroy_job", j.Queue, j.Priority, j.RunAt, j.ID)
+	err := j.conn.Raw(func(driverConn any) error {
+		pgxConn := driverConn.(*stdlib.Conn).Conn()
+		_, err := pgxConn.Exec(ctx, "que_destroy_job", j.Queue, j.Priority, j.RunAt, j.ID)
+		return err
+	})
+
 	if err != nil {
 		return err
 	}
@@ -127,9 +139,14 @@ func (j *Job) Delete() error {
 	return nil
 }
 
+// Same as DoneContext function (without context.Context).
+func (j *Job) Done() {
+	j.DoneContext(context.Background())
+}
+
 // Done releases the Postgres advisory lock on the job and returns the database
 // connection to the pool.
-func (j *Job) Done() {
+func (j *Job) DoneContext(ctx context.Context) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -141,15 +158,24 @@ func (j *Job) Done() {
 	var ok bool
 	// Swallow this error because we don't want an unlock failure to cause work to
 	// stop.
-	if err := j.conn.QueryRow("que_unlock_job", j.ID).Scan(&ok); err != nil {
+	err := j.conn.Raw(func(driverConn any) error {
+		pgxConn := driverConn.(*stdlib.Conn).Conn()
+		return pgxConn.QueryRow(ctx, "que_unlock_job", j.ID).Scan(&ok)
+	})
+
+	if err != nil {
 		log.Printf("failed to unlock job job_id=%d job_type=%s", j.ID, j.Type)
 	}
 
-	stdlib.ReleaseConn(j.c.pool, j.conn) //nolint:errcheck
-	// j.pool.Release(j.conn)
+	j.conn.Close()
 	j.c.dischargeJob(j)
 	j.c = nil
 	j.conn = nil
+}
+
+// Same as ErrorContext function (without context.Context).
+func (j *Job) Error(msg string) error {
+	return j.ErrorContext(context.Background(), msg)
 }
 
 // Error marks the job as failed and schedules it to be reworked. An error
@@ -158,11 +184,16 @@ func (j *Job) Done() {
 //
 // You must also later call Done() to return this job's database connection to
 // the pool.
-func (j *Job) Error(msg string) error {
+func (j *Job) ErrorContext(ctx context.Context, msg string) error {
 	errorCount := j.ErrorCount + 1
 	delay := intPow(int(errorCount), 4) + 3 // TODO: configurable delay
 
-	_, err := j.conn.Exec("que_set_error", errorCount, delay, msg, j.Queue, j.Priority, j.RunAt, j.ID)
+	err := j.conn.Raw(func(driverConn any) error {
+		pgxConn := driverConn.(*stdlib.Conn).Conn()
+		_, err := pgxConn.Exec(ctx, "que_set_error", errorCount, delay, msg, j.Queue, j.Priority, j.RunAt, j.ID)
+		return err
+	})
+
 	if err != nil {
 		return err
 	}
@@ -180,8 +211,8 @@ type Client struct {
 	// TODO: add a way to specify default queueing options
 }
 
-// NewClient2 creates a new Client that uses the pgx pool.
-func NewClient2(pool *sql.DB) (*Client, error) {
+// NewClient creates a new Client.
+func NewClient(pool *sql.DB) (*Client, error) {
 	stmtJobStats, err := pool.Prepare(sqlJobStats)
 	if err != nil {
 		return nil, err
@@ -193,11 +224,11 @@ func NewClient2(pool *sql.DB) (*Client, error) {
 	}, nil
 }
 
-// NewClient creates a new Client that uses the pgx pool. Returns nil if the initialization fails.
-func NewClient(pool *sql.DB) *Client {
-	c, err := NewClient2(pool)
+// MustNewClient creates a new Client. Panic if the initialization fails.
+func MustNewClient(pool *sql.DB) *Client {
+	c, err := NewClient(pool)
 	if err != nil {
-		return nil
+		panic(err)
 	}
 	return c
 }
@@ -311,6 +342,11 @@ var ErrAgain = errors.New("maximum number of LockJob attempts reached")
 // enqueued Job struct. The query sqlInsertJobAndReturn was already written for
 // this.
 
+// Same as LockJobContext function (without context.Context).
+func (c *Client) LockJob(queue string) (*Job, error) {
+	return c.LockJobContext(context.Background(), queue)
+}
+
 // LockJob attempts to retrieve a Job from the database in the specified queue.
 // If a job is found, a session-level Postgres advisory lock is created for the
 // Job's ID. If no job is found, nil will be returned instead of an error.
@@ -321,8 +357,8 @@ var ErrAgain = errors.New("maximum number of LockJob attempts reached")
 //
 // After the Job has been worked, you must call either Done() or Error() on it
 // in order to return the database connection to the pool and remove the lock.
-func (c *Client) LockJob(queue string) (*Job, error) {
-	conn, err := stdlib.AcquireConn(c.pool)
+func (c *Client) LockJobContext(ctx context.Context, queue string) (*Job, error) {
+	conn, err := c.pool.Conn(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -330,19 +366,21 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 	j := Job{c: c, conn: conn}
 
 	for i := 0; i < maxLockJobAttempts; i++ {
-		err = conn.QueryRow("que_lock_job", queue).Scan(
-			&j.Queue,
-			&j.Priority,
-			&j.RunAt,
-			&j.ID,
-			&j.Type,
-			&j.Args,
-			&j.ErrorCount,
-		)
+		err = conn.Raw(func(driverConn any) error {
+			pgxConn := driverConn.(*stdlib.Conn).Conn()
+			return pgxConn.QueryRow(ctx, "que_lock_job", queue).Scan(
+				&j.Queue,
+				&j.Priority,
+				&j.RunAt,
+				&j.ID,
+				&j.Type,
+				&j.Args,
+				&j.ErrorCount,
+			)
+		})
+
 		if err != nil {
-			// stdConn.Close()
-			stdlib.ReleaseConn(c.pool, conn) //nolint:errcheck
-			// c.pool.Release(conn)
+			conn.Close()
 			if err == pgx.ErrNoRows {
 				return nil, nil
 			}
@@ -362,7 +400,10 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 		// I'm not sure how to reliably commit a transaction that deletes
 		// the job in a separate thread between lock_job and check_job.
 		var ok bool
-		err = conn.QueryRow("que_check_job", j.Queue, j.Priority, j.RunAt, j.ID).Scan(&ok)
+		err = conn.Raw(func(driverConn any) error {
+			pgxConn := driverConn.(*stdlib.Conn).Conn()
+			return pgxConn.QueryRow(ctx, "que_check_job", j.Queue, j.Priority, j.RunAt, j.ID).Scan(&ok)
+		})
 		if err == nil {
 			c.manageJob(&j)
 			return &j, nil
@@ -373,16 +414,18 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 			// eventually causing the server to run out of locks.
 			//
 			// Also swallow the possible error, exactly like in Done.
-			_ = conn.QueryRow("que_unlock_job", j.ID).Scan(&ok)
+			conn.Raw(func(driverConn any) error { //nolint:errcheck
+				pgxConn := driverConn.(*stdlib.Conn).Conn()
+				pgxConn.QueryRow(ctx, "que_unlock_job", j.ID).Scan(&ok) //nolint:errcheck
+				return nil
+			})
 			continue
 		} else {
-			// stdConn.Close()
-			// c.pool.Release(conn)
-			stdlib.ReleaseConn(c.pool, conn) //nolint:errcheck
+			conn.Close()
 			return nil, err
 		}
 	}
-	stdlib.ReleaseConn(c.pool, conn) //nolint:errcheck
+	conn.Close()
 	return nil, ErrAgain
 }
 
@@ -396,9 +439,9 @@ var preparedStatements = map[string]string{
 }
 
 // PrepareStatements prepar statements
-func PrepareStatements(conn *pgx.Conn) error {
+func PrepareStatements(ctx context.Context, conn *pgx.Conn) error {
 	for name, sql := range preparedStatements {
-		if _, err := conn.Prepare(name, sql); err != nil {
+		if _, err := conn.Prepare(ctx, name, sql); err != nil {
 			return err
 		}
 	}

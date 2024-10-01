@@ -6,6 +6,10 @@ test: vet
 vet:
 	go vet ./...
 
+.PHONY: lint
+lint:
+	golangci-lint run
+
 .PHONY: db
 db:
 	psql -U postgres -h localhost -d postgres -c 'CREATE USER qgtest;'
