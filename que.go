@@ -11,7 +11,6 @@ import (
 	null "gopkg.in/guregu/null.v3"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/stdlib"
 )
 
 // Job is a single unit of work for Que to perform.
@@ -125,8 +124,7 @@ func (j *Job) DeleteContext(ctx context.Context) error {
 		return nil
 	}
 
-	err := j.conn.Raw(func(driverConn any) error {
-		pgxConn := driverConn.(*stdlib.Conn).Conn()
+	err := rawConn(j.conn, func(pgxConn *pgx.Conn) error {
 		_, err := pgxConn.Exec(ctx, "que_destroy_job", j.Queue, j.Priority, j.RunAt, j.ID)
 		return err
 	})
@@ -158,8 +156,7 @@ func (j *Job) DoneContext(ctx context.Context) {
 	var ok bool
 	// Swallow this error because we don't want an unlock failure to cause work to
 	// stop.
-	err := j.conn.Raw(func(driverConn any) error {
-		pgxConn := driverConn.(*stdlib.Conn).Conn()
+	err := rawConn(j.conn, func(pgxConn *pgx.Conn) error {
 		return pgxConn.QueryRow(ctx, "que_unlock_job", j.ID).Scan(&ok)
 	})
 
@@ -188,8 +185,7 @@ func (j *Job) ErrorContext(ctx context.Context, msg string) error {
 	errorCount := j.ErrorCount + 1
 	delay := intPow(int(errorCount), 4) + 3 // TODO: configurable delay
 
-	err := j.conn.Raw(func(driverConn any) error {
-		pgxConn := driverConn.(*stdlib.Conn).Conn()
+	err := rawConn(j.conn, func(pgxConn *pgx.Conn) error {
 		_, err := pgxConn.Exec(ctx, "que_set_error", errorCount, delay, msg, j.Queue, j.Priority, j.RunAt, j.ID)
 		return err
 	})
@@ -366,8 +362,7 @@ func (c *Client) LockJobContext(ctx context.Context, queue string) (*Job, error)
 	j := Job{c: c, conn: conn}
 
 	for i := 0; i < maxLockJobAttempts; i++ {
-		err = conn.Raw(func(driverConn any) error {
-			pgxConn := driverConn.(*stdlib.Conn).Conn()
+		err = rawConn(conn, func(pgxConn *pgx.Conn) error {
 			return pgxConn.QueryRow(ctx, "que_lock_job", queue).Scan(
 				&j.Queue,
 				&j.Priority,
@@ -400,8 +395,7 @@ func (c *Client) LockJobContext(ctx context.Context, queue string) (*Job, error)
 		// I'm not sure how to reliably commit a transaction that deletes
 		// the job in a separate thread between lock_job and check_job.
 		var ok bool
-		err = conn.Raw(func(driverConn any) error {
-			pgxConn := driverConn.(*stdlib.Conn).Conn()
+		err = rawConn(conn, func(pgxConn *pgx.Conn) error {
 			return pgxConn.QueryRow(ctx, "que_check_job", j.Queue, j.Priority, j.RunAt, j.ID).Scan(&ok)
 		})
 		if err == nil {
@@ -414,8 +408,7 @@ func (c *Client) LockJobContext(ctx context.Context, queue string) (*Job, error)
 			// eventually causing the server to run out of locks.
 			//
 			// Also swallow the possible error, exactly like in Done.
-			conn.Raw(func(driverConn any) error { //nolint:errcheck
-				pgxConn := driverConn.(*stdlib.Conn).Conn()
+			rawConn(conn, func(pgxConn *pgx.Conn) error { //nolint:errcheck
 				pgxConn.QueryRow(ctx, "que_unlock_job", j.ID).Scan(&ok) //nolint:errcheck
 				return nil
 			})

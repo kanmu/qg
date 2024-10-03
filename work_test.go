@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/stdlib"
 )
 
 func TestLockJob(t *testing.T) {
@@ -349,8 +348,7 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	conn.Raw(func(driverConn any) error {
-		pgxConn := driverConn.(*stdlib.Conn).Conn()
+	rawConn(conn, func(pgxConn *pgx.Conn) error {
 		ourBackendID = getBackendID(pgxConn)
 		return nil
 	})
