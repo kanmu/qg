@@ -1,14 +1,16 @@
-package qg
+package qg_test
 
 import (
 	"testing"
+
+	"github.com/kanmu/qg/v4"
 )
 
 func TestStats(t *testing.T) {
 	c := openTestClient(t)
 	defer truncateAndClose(c)
 
-	if err := c.Enqueue(&Job{Queue: "Q1", Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(&qg.Job{Queue: "Q1", Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -49,7 +51,7 @@ func TestStats(t *testing.T) {
 		t.Errorf("stats[0].OldestRunAt.IsZero() != false (got %v)", stats[0].OldestRunAt.IsZero())
 	}
 
-	if err := c.Enqueue(&Job{Queue: "Q1", Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(&qg.Job{Queue: "Q1", Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -90,7 +92,7 @@ func TestStats(t *testing.T) {
 		t.Errorf("stats[0].OldestRunAt.IsZero() != false (got %v)", stats[0].OldestRunAt.IsZero())
 	}
 
-	if err := c.Enqueue(&Job{Queue: "Q2", Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(&qg.Job{Queue: "Q2", Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -159,7 +161,7 @@ func TestStats(t *testing.T) {
 		t.Errorf("stats[1].OldestRunAt.IsZero() != false (got %v)", stats[1].OldestRunAt.IsZero())
 	}
 
-	if err := c.Enqueue(&Job{Queue: "Q1", Type: "AnotherJob"}); err != nil {
+	if err := c.Enqueue(&qg.Job{Queue: "Q1", Type: "AnotherJob"}); err != nil {
 		t.Fatal(err)
 	}
 

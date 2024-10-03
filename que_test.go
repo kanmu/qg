@@ -1,4 +1,4 @@
-package qg
+package qg_test
 
 import (
 	"database/sql"
@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4"
+	"github.com/kanmu/qg/v4"
 	sqltracer "gopkg.in/DataDog/dd-trace-go.v1/contrib/database/sql"
 )
 
@@ -19,8 +20,8 @@ var testConnConfig = func() *pgx.ConnConfig {
 
 const maxConn = 5
 
-func openTestClientMaxConns(t testing.TB, maxConnections int, openDB func(driver.Connector) *sql.DB) *Client {
-	connector, err := GetConnector("localhost", 5432, "qgtest", "", "qgtest")
+func openTestClientMaxConns(t testing.TB, maxConnections int, openDB func(driver.Connector) *sql.DB) *qg.Client {
+	connector, err := qg.GetConnector("localhost", 5432, "qgtest", "", "qgtest")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,25 +33,25 @@ func openTestClientMaxConns(t testing.TB, maxConnections int, openDB func(driver
 	db.SetMaxIdleConns(maxConnections)
 	// make lifetime sufficiently long
 	db.SetConnMaxLifetime(time.Duration(5 * time.Minute))
-	c, err := NewClient(db)
+	c, err := qg.NewClient(db)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return c
 }
 
-func openTestClient(t testing.TB) *Client {
+func openTestClient(t testing.TB) *qg.Client {
 	return openTestClientMaxConns(t, maxConn, sql.OpenDB)
 }
 
-func openTestClientWithTracer(t testing.TB) *Client {
+func openTestClientWithTracer(t testing.TB) *qg.Client {
 	return openTestClientMaxConns(t, maxConn, func(c driver.Connector) *sql.DB {
 		return sqltracer.OpenDB(c)
 	})
 }
 
-func truncateAndClose(c *Client) {
-	pool := c.pool
+func truncateAndClose(c *qg.Client) {
+	pool := c.TestGetPool()
 	c.Close()
 	if _, err := pool.Exec("TRUNCATE TABLE que_jobs"); err != nil {
 		panic(err)
@@ -58,12 +59,12 @@ func truncateAndClose(c *Client) {
 	pool.Close()
 }
 
-func findOneJob(q Queryer) (*Job, error) {
+func findOneJob(q qg.Queryer) (*qg.Job, error) {
 	findSQL := `
 	SELECT priority, run_at, job_id, job_class, args, error_count, last_error, queue
 	FROM que_jobs LIMIT 1`
 
-	j := &Job{}
+	j := &qg.Job{}
 	err := q.QueryRow(findSQL).Scan(
 		&j.Priority,
 		&j.RunAt,

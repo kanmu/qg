@@ -1,4 +1,4 @@
-package qg
+package qg_test
 
 import (
 	"fmt"
@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/kanmu/qg/v4"
 )
 
 func init() {
@@ -18,20 +20,20 @@ func TestWorkerWorkOne(t *testing.T) {
 	defer truncateAndClose(c)
 
 	success := false
-	wm := WorkMap{
-		"MyJob": func(j *Job) error {
+	wm := qg.WorkMap{
+		"MyJob": func(j *qg.Job) error {
 			success = true
 			return nil
 		},
 	}
-	w := NewWorker(c, wm)
+	w := qg.NewWorker(c, wm)
 
 	didWork := w.WorkOne()
 	if didWork {
 		t.Errorf("want didWork=false when no job was queued")
 	}
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(&qg.Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -49,20 +51,20 @@ func TestWorkerWorkOneWithTracer(t *testing.T) {
 	defer truncateAndClose(c)
 
 	success := false
-	wm := WorkMap{
-		"MyJob": func(j *Job) error {
+	wm := qg.WorkMap{
+		"MyJob": func(j *qg.Job) error {
 			success = true
 			return nil
 		},
 	}
-	w := NewWorker(c, wm)
+	w := qg.NewWorker(c, wm)
 
 	didWork := w.WorkOne()
 	if didWork {
 		t.Errorf("want didWork=false when no job was queued")
 	}
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(&qg.Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -79,7 +81,7 @@ func TestWorkerShutdown(t *testing.T) {
 	c := openTestClient(t)
 	defer truncateAndClose(c)
 
-	w := NewWorker(c, WorkMap{})
+	w := qg.NewWorker(c, qg.WorkMap{})
 	finished := false
 	go func() {
 		w.Work()
@@ -89,7 +91,7 @@ func TestWorkerShutdown(t *testing.T) {
 	if !finished {
 		t.Errorf("want finished=true")
 	}
-	if !w.done {
+	if !w.TestGetDone() {
 		t.Errorf("want w.done=true")
 	}
 }
@@ -102,10 +104,10 @@ func BenchmarkWorker(b *testing.B) {
 	}()
 	defer truncateAndClose(c)
 
-	w := NewWorker(c, WorkMap{"Nil": nilWorker})
+	w := qg.NewWorker(c, qg.WorkMap{"Nil": nilWorker})
 
 	for i := 0; i < b.N; i++ {
-		if err := c.Enqueue(&Job{Type: "Nil"}); err != nil {
+		if err := c.Enqueue(&qg.Job{Type: "Nil"}); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -116,7 +118,7 @@ func BenchmarkWorker(b *testing.B) {
 	}
 }
 
-func nilWorker(j *Job) error {
+func nilWorker(j *qg.Job) error {
 	return nil
 }
 
@@ -125,20 +127,20 @@ func TestWorkerWorkReturnsError(t *testing.T) {
 	defer truncateAndClose(c)
 
 	called := 0
-	wm := WorkMap{
-		"MyJob": func(j *Job) error {
+	wm := qg.WorkMap{
+		"MyJob": func(j *qg.Job) error {
 			called++
 			return fmt.Errorf("the error msg")
 		},
 	}
-	w := NewWorker(c, wm)
+	w := qg.NewWorker(c, wm)
 
 	didWork := w.WorkOne()
 	if didWork {
 		t.Errorf("want didWork=false when no job was queued")
 	}
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(&qg.Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -150,7 +152,7 @@ func TestWorkerWorkReturnsError(t *testing.T) {
 		t.Errorf("want called=1 was: %d", called)
 	}
 
-	tx, err := c.pool.Begin()
+	tx, err := c.TestGetPool().Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,15 +178,15 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 	defer truncateAndClose(c)
 
 	called := 0
-	wm := WorkMap{
-		"MyJob": func(j *Job) error {
+	wm := qg.WorkMap{
+		"MyJob": func(j *qg.Job) error {
 			called++
 			panic("the panic msg")
 		},
 	}
-	w := NewWorker(c, wm)
+	w := qg.NewWorker(c, wm)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(&qg.Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -193,7 +195,7 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 		t.Errorf("want called=1 was: %d", called)
 	}
 
-	tx, err := c.pool.Begin()
+	tx, err := c.TestGetPool().Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,15 +231,15 @@ func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 	availConns := 2
 
 	success := false
-	wm := WorkMap{}
-	w := NewWorker(c, wm)
+	wm := qg.WorkMap{}
+	w := qg.NewWorker(c, wm)
 
 	didWork := w.WorkOne()
 	if didWork {
 		t.Errorf("want didWork=false when no job was queued")
 	}
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(&qg.Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -249,14 +251,14 @@ func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 		t.Errorf("want success=false")
 	}
 
-	if currentConns != c.pool.Stats().OpenConnections {
-		t.Errorf("want currentConns euqual: before=%d  after=%d", currentConns, c.pool.Stats().OpenConnections)
+	if currentConns != c.TestGetPool().Stats().OpenConnections {
+		t.Errorf("want currentConns euqual: before=%d  after=%d", currentConns, c.TestGetPool().Stats().OpenConnections)
 	}
-	if availConns != c.pool.Stats().OpenConnections {
-		t.Errorf("want availConns euqual: before=%d  after=%d", availConns, c.pool.Stats().OpenConnections)
+	if availConns != c.TestGetPool().Stats().OpenConnections {
+		t.Errorf("want availConns euqual: before=%d  after=%d", availConns, c.TestGetPool().Stats().OpenConnections)
 	}
 
-	tx, err := c.pool.Begin()
+	tx, err := c.TestGetPool().Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
