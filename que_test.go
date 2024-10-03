@@ -2,10 +2,12 @@ package qg
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v4"
+	sqltracer "gopkg.in/DataDog/dd-trace-go.v1/contrib/database/sql"
 )
 
 var testConnConfig = func() *pgx.ConnConfig {
@@ -17,12 +19,12 @@ var testConnConfig = func() *pgx.ConnConfig {
 
 const maxConn = 5
 
-func openTestClientMaxConns(t testing.TB, maxConnections int) *Client {
+func openTestClientMaxConns(t testing.TB, maxConnections int, openDB func(driver.Connector) *sql.DB) *Client {
 	connector, err := GetConnector("localhost", 5432, "qgtest", "", "qgtest")
 	if err != nil {
 		t.Fatal(err)
 	}
-	db := sql.OpenDB(connector)
+	db := openDB(connector)
 	// using stdlib, it's difficult to open max conn from the beginning
 	// if we want to open connections till its limit, need to use go routine to
 	// concurrently open connections
@@ -38,7 +40,13 @@ func openTestClientMaxConns(t testing.TB, maxConnections int) *Client {
 }
 
 func openTestClient(t testing.TB) *Client {
-	return openTestClientMaxConns(t, maxConn)
+	return openTestClientMaxConns(t, maxConn, sql.OpenDB)
+}
+
+func openTestClientWithTracer(t testing.TB) *Client {
+	return openTestClientMaxConns(t, maxConn, func(c driver.Connector) *sql.DB {
+		return sqltracer.OpenDB(c)
+	})
 }
 
 func truncateAndClose(c *Client) {

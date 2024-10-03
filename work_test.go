@@ -2,6 +2,7 @@ package qg
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"sync"
 	"testing"
@@ -209,7 +210,7 @@ func TestJobConnRace(t *testing.T) {
 
 // Test the race condition in LockJob
 func TestLockJobAdvisoryRace(t *testing.T) {
-	c := openTestClientMaxConns(t, 4)
+	c := openTestClientMaxConns(t, 4, sql.OpenDB)
 	defer truncateAndClose(c)
 	ctx := context.Background()
 
