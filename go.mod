@@ -1,6 +1,8 @@
 module github.com/kanmu/qg
 
-go 1.22.8
+go 1.22.0
+
+toolchain go1.22.8
 
 require (
 	github.com/jackc/pgx/v5 v5.7.1
