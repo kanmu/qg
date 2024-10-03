@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql/driver"
 
-	"github.com/jackc/pgx/v4/stdlib"
-	"github.com/kanmu/qg/v4"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/kanmu/qg/v5"
 )
 
 var _ driver.Connector = &testConnector{}

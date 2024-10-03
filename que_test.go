@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v4"
-	"github.com/kanmu/qg/v4"
+	"github.com/jackc/pgx/v5"
+	"github.com/kanmu/qg/v5"
 )
 
 var testConnConfig = func() *pgx.ConnConfig {

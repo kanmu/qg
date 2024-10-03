@@ -10,7 +10,7 @@ import (
 
 	null "gopkg.in/guregu/null.v3"
 
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 )
 
 // Job is a single unit of work for Que to perform.

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kanmu/qg/v4"
+	"github.com/kanmu/qg/v5"
 )
 
 func TestEnqueueOnlyType(t *testing.T) {

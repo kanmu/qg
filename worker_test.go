@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kanmu/qg/v4"
+	"github.com/kanmu/qg/v5"
 )
 
 func init() {
