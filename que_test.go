@@ -8,7 +8,6 @@ import (
 
 	"github.com/jackc/pgx/v4"
 	"github.com/kanmu/qg/v4"
-	sqltracer "gopkg.in/DataDog/dd-trace-go.v1/contrib/database/sql"
 )
 
 var testConnConfig = func() *pgx.ConnConfig {
@@ -42,12 +41,6 @@ func openTestClientMaxConns(t testing.TB, maxConnections int, openDB func(driver
 
 func openTestClient(t testing.TB) *qg.Client {
 	return openTestClientMaxConns(t, maxConn, sql.OpenDB)
-}
-
-func openTestClientWithTracer(t testing.TB) *qg.Client {
-	return openTestClientMaxConns(t, maxConn, func(c driver.Connector) *sql.DB {
-		return sqltracer.OpenDB(c)
-	})
 }
 
 func truncateAndClose(c *qg.Client) {

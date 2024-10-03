@@ -1,6 +1,8 @@
 package qg_test
 
 import (
+	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"io"
 	"log"
@@ -46,8 +48,14 @@ func TestWorkerWorkOne(t *testing.T) {
 	}
 }
 
-func TestWorkerWorkOneWithTracer(t *testing.T) {
-	c := openTestClientWithTracer(t)
+func TestWorkerWorkOneWithCustomConnector(t *testing.T) {
+	callNumWrappedConn := 0
+
+	c := openTestClientMaxConns(t, maxConn, func(c driver.Connector) *sql.DB {
+		connector := NewTestConnector(c, &callNumWrappedConn)
+		return sql.OpenDB(connector)
+	})
+
 	defer truncateAndClose(c)
 
 	success := false
@@ -74,6 +82,10 @@ func TestWorkerWorkOneWithTracer(t *testing.T) {
 	}
 	if !success {
 		t.Errorf("want success=true")
+	}
+
+	if callNumWrappedConn != 5 {
+		t.Errorf("want callNumWrappedConn=5")
 	}
 }
 
