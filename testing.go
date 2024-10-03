@@ -1,9 +1,9 @@
 package qg
 
-import "github.com/jackc/pgx"
+import "database/sql"
 
 // // TestInjectJobConn injects *pgx.Conn to Job
-func TestInjectJobConn(j *Job, conn *pgx.Conn) *Job {
+func TestInjectJobConn(j *Job, conn *sql.Conn) *Job {
 	j.conn = conn
 	return j
 }

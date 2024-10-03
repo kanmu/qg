@@ -22,7 +22,7 @@ This library is still under heavy development, and might significantly change AP
 ## Test
 
 ```
-docker-compose up -d
+docker compose up -d
 make db
 make table
 make test
