@@ -1,19 +1,21 @@
-package qg
+package qg_test
 
 import (
 	"testing"
 	"time"
+
+	"github.com/kanmu/qg/v4"
 )
 
 func TestEnqueueOnlyType(t *testing.T) {
 	c := openTestClient(t)
 	defer truncateAndClose(c)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+	if err := c.Enqueue(&qg.Job{Type: "MyJob"}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := findOneJob(c.pool)
+	j, err := findOneJob(c.TestGetPool())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,11 +52,11 @@ func TestEnqueueWithPriority(t *testing.T) {
 	defer truncateAndClose(c)
 
 	want := int16(99)
-	if err := c.Enqueue(&Job{Type: "MyJob", Priority: want}); err != nil {
+	if err := c.Enqueue(&qg.Job{Type: "MyJob", Priority: want}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := findOneJob(c.pool)
+	j, err := findOneJob(c.TestGetPool())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,11 +71,11 @@ func TestEnqueueWithRunAt(t *testing.T) {
 	defer truncateAndClose(c)
 
 	want := time.Now().Add(2 * time.Minute)
-	if err := c.Enqueue(&Job{Type: "MyJob", RunAt: want}); err != nil {
+	if err := c.Enqueue(&qg.Job{Type: "MyJob", RunAt: want}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := findOneJob(c.pool)
+	j, err := findOneJob(c.TestGetPool())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,11 +92,11 @@ func TestEnqueueWithArgs(t *testing.T) {
 	defer truncateAndClose(c)
 
 	want := `{"arg1":0, "arg2":"a string"}`
-	if err := c.Enqueue(&Job{Type: "MyJob", Args: []byte(want)}); err != nil {
+	if err := c.Enqueue(&qg.Job{Type: "MyJob", Args: []byte(want)}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := findOneJob(c.pool)
+	j, err := findOneJob(c.TestGetPool())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,11 +111,11 @@ func TestEnqueueWithQueue(t *testing.T) {
 	defer truncateAndClose(c)
 
 	want := "special-work-queue"
-	if err := c.Enqueue(&Job{Type: "MyJob", Queue: want}); err != nil {
+	if err := c.Enqueue(&qg.Job{Type: "MyJob", Queue: want}); err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := findOneJob(c.pool)
+	j, err := findOneJob(c.TestGetPool())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +129,7 @@ func TestEnqueueWithEmptyType(t *testing.T) {
 	c := openTestClient(t)
 	defer truncateAndClose(c)
 
-	if err := c.Enqueue(&Job{Type: ""}); err != ErrMissingType {
+	if err := c.Enqueue(&qg.Job{Type: ""}); err != qg.ErrMissingType {
 		t.Fatalf("want ErrMissingType, got %v", err)
 	}
 }
@@ -136,13 +138,13 @@ func TestEnqueueInTx(t *testing.T) {
 	c := openTestClient(t)
 	defer truncateAndClose(c)
 
-	tx, err := c.pool.Begin()
+	tx, err := c.TestGetPool().Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer tx.Rollback() //nolint:errcheck
 
-	if err = c.EnqueueInTx(&Job{Type: "MyJob"}, tx); err != nil {
+	if err = c.EnqueueInTx(&qg.Job{Type: "MyJob"}, tx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -158,7 +160,7 @@ func TestEnqueueInTx(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	j, err = findOneJob(c.pool)
+	j, err = findOneJob(c.TestGetPool())
 	if err != nil {
 		t.Fatal(err)
 	}
