@@ -12,7 +12,7 @@ var _ driver.Connector = &testConnector{}
 
 type testConnector struct {
 	driver.Connector
-	Called *int
+	called *int
 }
 
 var _ qg.ConnWrapper = &testConnWrapper{}
@@ -23,7 +23,7 @@ type testConnWrapper struct {
 }
 
 func (cw *testConnWrapper) WrappedConn() driver.Conn {
-	*cw.Called++
+	*cw.called++
 	return cw.Conn
 }
 
