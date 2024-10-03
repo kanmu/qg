@@ -44,6 +44,37 @@ func TestWorkerWorkOne(t *testing.T) {
 	}
 }
 
+func TestWorkerWorkOneWithTracer(t *testing.T) {
+	c := openTestClientWithTracer(t)
+	defer truncateAndClose(c)
+
+	success := false
+	wm := WorkMap{
+		"MyJob": func(j *Job) error {
+			success = true
+			return nil
+		},
+	}
+	w := NewWorker(c, wm)
+
+	didWork := w.WorkOne()
+	if didWork {
+		t.Errorf("want didWork=false when no job was queued")
+	}
+
+	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
+		t.Fatal(err)
+	}
+
+	didWork = w.WorkOne()
+	if !didWork {
+		t.Errorf("want didWork=true")
+	}
+	if !success {
+		t.Errorf("want success=true")
+	}
+}
+
 func TestWorkerShutdown(t *testing.T) {
 	c := openTestClient(t)
 	defer truncateAndClose(c)

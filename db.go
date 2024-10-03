@@ -1,6 +1,7 @@
 package qg
 
 import (
+	"database/sql"
 	"database/sql/driver"
 	"fmt"
 	"net/url"
@@ -34,4 +35,27 @@ func GetConnectorFromConnStr(connStr string) (driver.Connector, error) {
 	connector := stdlib.GetConnector(*cfg, stdlib.OptionAfterConnect(PrepareStatements))
 
 	return connector, nil
+}
+
+// driver.Conn Wrapper
+type ConnWrapper interface {
+	WrappedConn() driver.Conn
+}
+
+// Get *pgx.Conn from *sql.Conn and pass it to function.
+func rawConn(conn *sql.Conn, f func(*pgx.Conn) error) error {
+	err := conn.Raw(func(driverConn any) error {
+		var stdlibConn *stdlib.Conn
+
+		if tracedConn, ok := driverConn.(ConnWrapper); ok {
+			stdlibConn = tracedConn.WrappedConn().(*stdlib.Conn)
+		} else {
+			stdlibConn = driverConn.(*stdlib.Conn)
+		}
+
+		pgxConn := stdlibConn.Conn()
+		return f(pgxConn)
+	})
+
+	return err
 }

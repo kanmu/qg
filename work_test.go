@@ -2,13 +2,13 @@ package qg
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/stdlib"
 )
 
 func TestLockJob(t *testing.T) {
@@ -210,7 +210,7 @@ func TestJobConnRace(t *testing.T) {
 
 // Test the race condition in LockJob
 func TestLockJobAdvisoryRace(t *testing.T) {
-	c := openTestClientMaxConns(t, 4)
+	c := openTestClientMaxConns(t, 4, sql.OpenDB)
 	defer truncateAndClose(c)
 	ctx := context.Background()
 
@@ -349,8 +349,7 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	conn.Raw(func(driverConn any) error {
-		pgxConn := driverConn.(*stdlib.Conn).Conn()
+	rawConn(conn, func(pgxConn *pgx.Conn) error {
 		ourBackendID = getBackendID(pgxConn)
 		return nil
 	})
