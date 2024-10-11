@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/kanmu/qg/v4"
+	"github.com/kanmu/qg/v5"
 )
 
 func TestWorkerPool(t *testing.T) {
