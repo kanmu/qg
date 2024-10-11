@@ -56,11 +56,7 @@ func TestWorkerPool(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = checkDB.Exec("TRUNCATE TABLE que_jobs")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = checkDB.Exec("TRUNCATE TABLE job_test")
+	_, err = checkDB.Exec("TRUNCATE TABLE que_jobs, job_test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,6 +96,15 @@ func TestWorkerPool(t *testing.T) {
 			strings.Repeat("job3,queue1 ", 10)+
 			strings.Repeat("job4,queue1 ", 10) {
 		t.Errorf("unexpected result: %v", rows)
+	}
+
+	var queJobsCount int
+	err = checkDB.QueryRow("SELECT COUNT(*) FROM que_jobs").Scan(&queJobsCount)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if queJobsCount != 0 {
+		t.Errorf("unexpected que_jobs count: %d", queJobsCount)
 	}
 }
 
@@ -190,11 +195,7 @@ func TestWorkerPoolMultiQueue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = checkDB.Exec("TRUNCATE TABLE que_jobs")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = checkDB.Exec("TRUNCATE TABLE job_test")
+	_, err = checkDB.Exec("TRUNCATE TABLE que_jobs, job_test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,6 +245,15 @@ func TestWorkerPoolMultiQueue(t *testing.T) {
 			strings.Repeat("job4,queue1 ", 3)+
 			strings.Repeat("job4,queue2 ", 3) {
 		t.Errorf("unexpected result: %v", rows)
+	}
+
+	var queJobsCount int
+	err = checkDB.QueryRow("SELECT COUNT(*) FROM que_jobs").Scan(&queJobsCount)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if queJobsCount != 0 {
+		t.Errorf("unexpected que_jobs count: %d", queJobsCount)
 	}
 }
 
@@ -341,11 +351,7 @@ func TestWorkerPoolMultiDB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = checkDB.Exec("TRUNCATE TABLE que_jobs")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = checkDB.Exec("TRUNCATE TABLE job_test")
+	_, err = checkDB.Exec("TRUNCATE TABLE que_jobs, job_test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -402,5 +408,14 @@ func TestWorkerPoolMultiDB(t *testing.T) {
 			strings.Repeat("job4,queue1 ", 5)+
 			strings.Repeat("job4,queue2 ", 5) {
 		t.Errorf("unexpected result: %v", rows)
+	}
+
+	var queJobsCount int
+	err = checkDB.QueryRow("SELECT COUNT(*) FROM que_jobs").Scan(&queJobsCount)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if queJobsCount != 0 {
+		t.Errorf("unexpected que_jobs count: %d", queJobsCount)
 	}
 }
