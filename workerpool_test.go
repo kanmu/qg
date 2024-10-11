@@ -20,36 +20,37 @@ func TestWorkerPool(t *testing.T) {
 	db := sql.OpenDB(connector)
 	client := qg.MustNewClient(db)
 	var wg sync.WaitGroup
+	queueName1 := "queue1"
 
 	wm := qg.WorkMap{
 		"job1": func(j *qg.Job) error {
 			defer wg.Done()
 			tx := j.Tx()
-			_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job1", j.Queue)
+			_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job1", queueName1)
 			return err
 		},
 		"job2": func(j *qg.Job) error {
 			defer wg.Done()
 			tx := j.Tx()
-			_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job2", j.Queue)
+			_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job2", queueName1)
 			return err
 		},
 		"job3": func(j *qg.Job) error {
 			defer wg.Done()
 			tx := j.Tx()
-			_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job3", j.Queue)
+			_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job3", queueName1)
 			return err
 		},
 		"job4": func(j *qg.Job) error {
 			defer wg.Done()
 			tx := j.Tx()
-			_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job4", j.Queue)
+			_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job4", queueName1)
 			return err
 		},
 	}
 
 	pool := qg.NewWorkerPool(client, wm, 3)
-	pool.Queue = "queue1"
+	pool.Queue = queueName1
 
 	checkDB, err := sql.Open("pgx", "postgres://qgtest@localhost:5432/qgtest")
 	if err != nil {
@@ -116,71 +117,73 @@ func TestWorkerPoolMultiQueue(t *testing.T) {
 	// queue1
 	{
 		client := qg.MustNewClient(db)
+		queueName1 := "queue1"
 
 		wm := qg.WorkMap{
 			"job1": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job1", j.Queue)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job1", queueName1)
 				return err
 			},
 			"job2": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job2", j.Queue)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job2", queueName1)
 				return err
 			},
 			"job3": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job3", j.Queue)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job3", queueName1)
 				return err
 			},
 			"job4": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job4", j.Queue)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job4", queueName1)
 				return err
 			},
 		}
 
 		pool1 = qg.NewWorkerPool(client, wm, 2)
-		pool1.Queue = "queue1"
+		pool1.Queue = queueName1
 	}
 
 	// queue2
 	{
 		client := qg.MustNewClient(db)
+		queueName2 := "queue2"
 
 		wm := qg.WorkMap{
 			"job1": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job1", j.Queue)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job1", queueName2)
 				return err
 			},
 			"job2": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job2", j.Queue)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job2", queueName2)
 				return err
 			},
 			"job3": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job3", j.Queue)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job3", queueName2)
 				return err
 			},
 			"job4": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job4", j.Queue)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job4", queueName2)
 				return err
 			},
 		}
 
 		pool2 = qg.NewWorkerPool(client, wm, 3)
-		pool2.Queue = "queue2"
+		pool2.Queue = queueName2
 	}
 
 	checkDB, err := sql.Open("pgx", "postgres://qgtest@localhost:5432/qgtest")
@@ -258,36 +261,37 @@ func TestWorkerPoolMultiDB(t *testing.T) {
 
 		db := sql.OpenDB(connector)
 		client := qg.MustNewClient(db)
+		queueName1 := "queue1"
 
 		wm := qg.WorkMap{
 			"job1": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job1", j.Queue)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job1", queueName1)
 				return err
 			},
 			"job2": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job2", j.Queue)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job2", queueName1)
 				return err
 			},
 			"job3": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job3", j.Queue)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job3", queueName1)
 				return err
 			},
 			"job4": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job4", j.Queue)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job4", queueName1)
 				return err
 			},
 		}
 
 		pool1 = qg.NewWorkerPool(client, wm, 2)
-		pool1.Queue = "queue1"
+		pool1.Queue = queueName1
 	}
 
 	// queue2
@@ -300,36 +304,37 @@ func TestWorkerPoolMultiDB(t *testing.T) {
 
 		db := sql.OpenDB(connector)
 		client := qg.MustNewClient(db)
+		queue2Name := "queue2"
 
 		wm := qg.WorkMap{
 			"job1": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job1", j.Queue)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job1", queue2Name)
 				return err
 			},
 			"job2": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job2", j.Queue)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job2", queue2Name)
 				return err
 			},
 			"job3": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job3", j.Queue)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job3", queue2Name)
 				return err
 			},
 			"job4": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job4", j.Queue)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job4", queue2Name)
 				return err
 			},
 		}
 
 		pool2 = qg.NewWorkerPool(client, wm, 3)
-		pool2.Queue = "queue2"
+		pool2.Queue = queue2Name
 	}
 
 	checkDB, err := sql.Open("pgx", "postgres://qgtest@localhost:5432/qgtest")
