@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS que_jobs;
+
 CREATE TABLE que_jobs
 (
   priority    smallint    NOT NULL DEFAULT 100,
@@ -13,3 +15,14 @@ CREATE TABLE que_jobs
 );
 
 COMMENT ON TABLE que_jobs IS '3';
+
+DROP TABLE IF EXISTS job_test;
+
+CREATE TABLE job_test
+(
+  job_id bigserial   NOT NULL,
+  name   text        NOT NULL,
+  queue  text        NOT NULL,
+
+  CONSTRAINT job_test_pkey PRIMARY KEY (job_id)
+);
