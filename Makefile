@@ -18,3 +18,4 @@ db:
 .PHONY: table
 table:
 	psql -U qgtest -h localhost -d qgtest -f schema.sql
+	psql -U qgtest -h localhost -d qgtest -f schema_test.sql
