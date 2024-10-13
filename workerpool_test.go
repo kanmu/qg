@@ -26,25 +26,25 @@ func TestWorkerPool(t *testing.T) {
 		"job1": func(j *qg.Job) error {
 			defer wg.Done()
 			tx := j.Tx()
-			_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job1", queueName1)
+			_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job1", queueName1)
 			return err
 		},
 		"job2": func(j *qg.Job) error {
 			defer wg.Done()
 			tx := j.Tx()
-			_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job2", queueName1)
+			_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job2", queueName1)
 			return err
 		},
 		"job3": func(j *qg.Job) error {
 			defer wg.Done()
 			tx := j.Tx()
-			_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job3", queueName1)
+			_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job3", queueName1)
 			return err
 		},
 		"job4": func(j *qg.Job) error {
 			defer wg.Done()
 			tx := j.Tx()
-			_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job4", queueName1)
+			_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job4", queueName1)
 			return err
 		},
 	}
@@ -72,7 +72,7 @@ func TestWorkerPool(t *testing.T) {
 	wg.Wait()
 	pool.Shutdown()
 
-	rs, err := checkDB.Query("SELECT name, queue FROM job_test")
+	rs, err := checkDB.Query("SELECT name, value FROM job_test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,12 +80,12 @@ func TestWorkerPool(t *testing.T) {
 	rows := []string{}
 
 	for rs.Next() {
-		var name, queue string
-		err = rs.Scan(&name, &queue)
+		var name, value string
+		err = rs.Scan(&name, &value)
 		if err != nil {
 			t.Fatal(err)
 		}
-		rows = append(rows, name+","+queue)
+		rows = append(rows, name+","+value)
 	}
 
 	sort.Strings(rows)
@@ -128,25 +128,25 @@ func TestWorkerPoolMultiQueue(t *testing.T) {
 			"job1": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job1", queueName1)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job1", queueName1)
 				return err
 			},
 			"job2": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job2", queueName1)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job2", queueName1)
 				return err
 			},
 			"job3": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job3", queueName1)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job3", queueName1)
 				return err
 			},
 			"job4": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job4", queueName1)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job4", queueName1)
 				return err
 			},
 		}
@@ -164,25 +164,25 @@ func TestWorkerPoolMultiQueue(t *testing.T) {
 			"job1": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job1", queueName2)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job1", queueName2)
 				return err
 			},
 			"job2": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job2", queueName2)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job2", queueName2)
 				return err
 			},
 			"job3": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job3", queueName2)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job3", queueName2)
 				return err
 			},
 			"job4": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job4", queueName2)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job4", queueName2)
 				return err
 			},
 		}
@@ -217,7 +217,7 @@ func TestWorkerPoolMultiQueue(t *testing.T) {
 	pool1.Shutdown()
 	pool2.Shutdown()
 
-	rs, err := checkDB.Query("SELECT name, queue FROM job_test")
+	rs, err := checkDB.Query("SELECT name, value FROM job_test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,12 +225,12 @@ func TestWorkerPoolMultiQueue(t *testing.T) {
 	rows := []string{}
 
 	for rs.Next() {
-		var name, queue string
-		err = rs.Scan(&name, &queue)
+		var name, value string
+		err = rs.Scan(&name, &value)
 		if err != nil {
 			t.Fatal(err)
 		}
-		rows = append(rows, name+","+queue)
+		rows = append(rows, name+","+value)
 	}
 
 	sort.Strings(rows)
@@ -277,25 +277,25 @@ func TestWorkerPoolMultiDB(t *testing.T) {
 			"job1": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job1", queueName1)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job1", queueName1)
 				return err
 			},
 			"job2": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job2", queueName1)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job2", queueName1)
 				return err
 			},
 			"job3": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job3", queueName1)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job3", queueName1)
 				return err
 			},
 			"job4": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job4", queueName1)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job4", queueName1)
 				return err
 			},
 		}
@@ -320,25 +320,25 @@ func TestWorkerPoolMultiDB(t *testing.T) {
 			"job1": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job1", queue2Name)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job1", queue2Name)
 				return err
 			},
 			"job2": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job2", queue2Name)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job2", queue2Name)
 				return err
 			},
 			"job3": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job3", queue2Name)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job3", queue2Name)
 				return err
 			},
 			"job4": func(j *qg.Job) error {
 				defer wg.Done()
 				tx := j.Tx()
-				_, err := tx.Exec("INSERT INTO job_test (job_id, name, queue) VALUES ($1, $2, $3)", j.ID, "job4", queue2Name)
+				_, err := tx.Exec("INSERT INTO job_test (job_id, name, value) VALUES ($1, $2, $3)", j.ID, "job4", queue2Name)
 				return err
 			},
 		}
@@ -380,7 +380,7 @@ func TestWorkerPoolMultiDB(t *testing.T) {
 	pool1.Shutdown()
 	pool2.Shutdown()
 
-	rs, err := checkDB.Query("SELECT name, queue FROM job_test")
+	rs, err := checkDB.Query("SELECT name, value FROM job_test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -388,12 +388,12 @@ func TestWorkerPoolMultiDB(t *testing.T) {
 	rows := []string{}
 
 	for rs.Next() {
-		var name, queue string
-		err = rs.Scan(&name, &queue)
+		var name, value string
+		err = rs.Scan(&name, &value)
 		if err != nil {
 			t.Fatal(err)
 		}
-		rows = append(rows, name+","+queue)
+		rows = append(rows, name+","+value)
 	}
 
 	sort.Strings(rows)
