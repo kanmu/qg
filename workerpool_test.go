@@ -3,6 +3,7 @@ package qg_test
 import (
 	"database/sql"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -523,21 +524,29 @@ func TestWorkerPoolSingleQueueMultiDB(t *testing.T) {
 	}
 
 	rows := []string{}
+	pids := []string{}
 
 	for rs.Next() {
-		var name, _value string
+		var name, value string
 		var count int
-		err = rs.Scan(&name, &_value, &count)
+		err = rs.Scan(&name, &value, &count)
 		if err != nil {
 			t.Fatal(err)
 		}
 		rows = append(rows, fmt.Sprintf("%s,%d", name, count))
+		pids = append(pids, value)
 	}
 
 	sort.Strings(rows)
+	sort.Strings(pids)
+	pids = slices.Compact(pids)
 
 	if strings.Join(rows, " ") != "job1,1 job1,1 job2,1 job2,1 job3,1 job3,1 job4,1 job4,1" {
 		t.Errorf("unexpected result: %v", rows)
+	}
+
+	if len(pids) != 8 {
+		t.Errorf("unexpected unique pid count: %v", len(pids))
 	}
 
 	var queJobsCount int
