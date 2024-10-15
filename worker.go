@@ -103,6 +103,7 @@ func (w *Worker) WorkOne() (didWork bool) {
 	if j == nil {
 		return // no job was available
 	}
+	log.Printf("event=start_job job_id=%d job_type=%s", j.ID, j.Type)
 	j.tx, err = j.c.pool.Begin()
 	if err != nil {
 		log.Printf("failed to create transaction: %v", err)
