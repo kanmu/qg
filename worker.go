@@ -95,6 +95,7 @@ func (w *Worker) Work() {
 
 // WorkOne work on job
 func (w *Worker) WorkOne() (didWork bool) {
+	startTime := time.Now()
 	j, err := w.c.LockJob(w.Queue)
 	if err != nil {
 		log.Printf("attempting to lock job: %v", err)
@@ -103,7 +104,7 @@ func (w *Worker) WorkOne() (didWork bool) {
 	if j == nil {
 		return // no job was available
 	}
-	log.Printf("event=start_job job_id=%d job_type=%s", j.ID, j.Type)
+	log.Printf("event=start_job job_id=%d job_type=%s lock_time=%d", j.ID, j.Type, time.Since(startTime).Milliseconds())
 	j.tx, err = j.c.pool.Begin()
 	if err != nil {
 		log.Printf("failed to create transaction: %v", err)
