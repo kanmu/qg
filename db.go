@@ -25,14 +25,15 @@ func GetConnectorFromURL(u *url.URL) (driver.Connector, error) {
 	return GetConnectorFromConnStr(u.String())
 }
 
-func GetConnectorFromConnStr(connStr string) (driver.Connector, error) {
+func GetConnectorFromConnStr(connStr string, opts ...stdlib.OptionOpenDB) (driver.Connector, error) {
 	cfg, err := pgx.ParseConfig(connStr)
 
 	if err != nil {
 		return nil, err
 	}
 
-	connector := stdlib.GetConnector(*cfg, stdlib.OptionAfterConnect(PrepareStatements))
+	opts = append(opts, stdlib.OptionAfterConnect(PrepareStatements))
+	connector := stdlib.GetConnector(*cfg, opts...)
 
 	return connector, nil
 }
