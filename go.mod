@@ -5,7 +5,7 @@ go 1.22.0
 toolchain go1.22.8
 
 require (
-	github.com/jackc/pgx/v5 v5.7.2
+	github.com/jackc/pgx/v5 v5.7.3
 	gopkg.in/guregu/null.v3 v3.0.2-0.20160228005316-41961cea0328
 )
 
