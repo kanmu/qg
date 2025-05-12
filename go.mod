@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/jackc/pgx/v5 v5.7.4
-	gopkg.in/guregu/null.v3 v3.0.2-0.20160228005316-41961cea0328
+	gopkg.in/guregu/null.v3 v3.5.0
 )
 
 require (
