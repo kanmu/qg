@@ -5,12 +5,12 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    target-branch: "main"
+    target-branch: "master"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-    target-branch: "main"
+    target-branch: "master"
   # v4
   - package-ecosystem: "gomod"
     directory: "/"
