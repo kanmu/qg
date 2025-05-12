@@ -1,10 +1,28 @@
 version: 2
 updates:
+  # v5
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
       interval: "weekly"
+    target-branch: "main"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    target-branch: "main"
+  # v4
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "v4"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "v4"
